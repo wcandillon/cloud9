@@ -77,8 +77,13 @@ module.exports = ext.register("ext/language/language", {
                 if (!editors.currentEditor || !editors.currentEditor.amlEditor) // No editor, for some reason
                     return;
                 ext.initExtension(_self);
+
                 var path = event.node.getAttribute("path");
-                worker.call("documentOpen", [path, editors.currentEditor.amlEditor.syntax, event.doc.getValue(), null, ide.workspaceDir]);
+                var editor = editors.currentEditor.amlEditor;
+                // workaround for concorde firing changesession with empty document
+                var isVisible = editor.xmlRoot == event.node;
+                var action = isVisible ? "switchFile" : "documentOpen";
+                worker.call(action, [path, editor.syntax, event.doc.getValue(), null, ide.workspaceDir]);
             });
 
             // Language features
