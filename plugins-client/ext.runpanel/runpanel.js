@@ -51,6 +51,7 @@ module.exports = ext.register("ext/runpanel/runpanel", {
 
         this.markupInsertionPoint = colLeft;
 
+	/*
         panels.register(this, {
             position : 3000,
             caption: "Run & Debug",
@@ -83,6 +84,7 @@ module.exports = ext.register("ext/runpanel/runpanel", {
                 _self.stop();
             }
         });
+	*/
 
         this.nodes.push(
             this.mnuRunCfg = new apf.menu({
@@ -104,6 +106,7 @@ module.exports = ext.register("ext/runpanel/runpanel", {
                 }
             }),
 
+/*
             menus.$insertByIndex(barTools, new apf.splitbutton({
                 id       : "btnRun",
                 checked  : "[{require('ext/settings/settings').model}::auto/configurations/@debug]",
@@ -130,10 +133,12 @@ module.exports = ext.register("ext/runpanel/runpanel", {
 //            menus.$insertByIndex(barTools, new apf.divider({
 //                skin : "c9-divider"
 //            }), 300),
+*/
 
             this.model = new apf.model().load("<configurations />")
         );
 
+	/*
         apf.setStyleClass(btnRun.$ext, "btnRun");
         apf.setStyleClass(btnStop.$ext, "btnStop");
 
@@ -146,6 +151,7 @@ module.exports = ext.register("ext/runpanel/runpanel", {
             timeout : 1000,
             hideonclick : true
         });
+	*/
 
         var c = 0;
         menus.addItemToMenu(this.mnuRunCfg, new apf.item({
