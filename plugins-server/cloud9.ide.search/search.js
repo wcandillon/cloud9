@@ -52,6 +52,7 @@ module.exports = function() {
             this.activeProcess.kill("SIGKILL");
 
         vfs.spawn(args.command, { args: args, cwd: options.path, stdoutEncoding: "utf8", stderrEncoding: "utf8" }, function(err, meta) {
+            return onExit(1, err);
             if (err || !meta.process)
                 return onExit(1, err);
 
