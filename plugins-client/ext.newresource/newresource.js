@@ -65,7 +65,7 @@ module.exports = ext.register("ext/newresource/newresource", {
                 disabled: readonly,
                 command : "newfile",
             }), 100),
-            menus.addItemByPath("File/New From Template...", new apf.item({
+            menus.addItemByPath("File/New File of Type...", new apf.item({
                 disabled: readonly,
                 command : "newfiletemplate"
             }), 200),
