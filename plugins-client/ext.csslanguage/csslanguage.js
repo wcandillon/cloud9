@@ -10,8 +10,8 @@ var ext = require("core/ext");
 var editors = require("ext/editors/editors");
 var language = require("ext/language/language");
 
-module.exports = ext.register("ext/jslanguage/jslanguage", {
-    name    : "Javascript Language Support",
+module.exports = ext.register("ext/csslanguage/csslanguage", {
+    name    : "CSS Language Support",
     dev     : "Ajax.org",
     type    : ext.GENERAL,
     deps    : [editors, language],
@@ -19,14 +19,9 @@ module.exports = ext.register("ext/jslanguage/jslanguage", {
     alone   : true,
 
     init : function() {
-        language.registerLanguageHandler('ext/jslanguage/parse');
-        language.registerLanguageHandler('ext/jslanguage/scope_analyzer');
-        // indirectly invoked by scope_analyzer: 'ext/jslanguage/jshint'
-        language.registerLanguageHandler('ext/jslanguage/debugger');
-        language.registerLanguageHandler('ext/jslanguage/outline');
-        language.registerLanguageHandler('ext/jslanguage/jumptodef');
+        language.registerLanguageHandler("ext/csslanguage/css_handler");
     },
-    
+
     enable : function() {
     },
 

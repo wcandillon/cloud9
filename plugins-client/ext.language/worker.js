@@ -352,7 +352,7 @@ function asyncParForEach(array, fn, callback) {
         var _self = this;
         var result;
         asyncForEach(_self.handlers, function(handler, next) {
-            if (handler.handlesLanguage(_self.$language) && handler.findNode) {
+            if (handler.handlesLanguage(_self.$language)) {
                 handler.findNode(ast, pos, function(node) {
                     if (node)
                         result = node;
@@ -614,9 +614,8 @@ function asyncParForEach(array, fn, callback) {
             asyncForEach(_self.handlers, function(handler, next) {
                 if (handler.handlesLanguage(_self.$language)) {
                     handler.jumpToDefinition(_self.doc, ast, pos, currentNode, function(result) {
-                        if (result) {
+                        if (result)
                             endResult = result;
-                        }
                         next();
                     });
                 }
