@@ -684,7 +684,7 @@ module.exports = ext.register("ext/console/console", {
             }), 800)
         );
 
-        menus.addItemByPath("Tools/~", new apf.divider(), 30000);
+        //menus.addItemByPath("Tools/~", new apf.divider(), 30000);
 
         var cmd = {
             "Git" : [
@@ -709,6 +709,7 @@ module.exports = ext.register("ext/console/console", {
             ]
         };
 
+	/*
         var idx = 40000;
         Object.keys(cmd).forEach(function(c) {
             menus.addItemByPath("Tools/" + c + "/", null, idx += 1000);
@@ -730,6 +731,7 @@ module.exports = ext.register("ext/console/console", {
                     }), idx2 += 100);
             });
         });
+	*/
 
         ide.addEventListener("settings.load", function(e){
             settings.setDefaults("auto/console", [
