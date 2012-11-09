@@ -47,6 +47,7 @@ module.exports = ext.register("ext/menus/menus", {
         );
 
         var timer;
+        /*
         this.menubar.insertBefore(new apf.button({
             "class" : "c9-mbar-minimize",
             "skin" : "c9-simple-btn",
@@ -57,7 +58,8 @@ module.exports = ext.register("ext/menus/menus", {
                     _self.restore();
             }
         }), this.menubar.firstChild);
-
+        */
+        
         logobar.$ext.addEventListener("mousedown", function(){
             _self.restore();
         });
@@ -161,9 +163,10 @@ module.exports = ext.register("ext/menus/menus", {
         if(window.cloud9config.hosted) {
             var mainlogo = logobar.$ext.getElementsByClassName('mainlogo');
             if(mainlogo && (mainlogo = mainlogo[0])) {
-                mainlogo.title = "back to dashboard";
-                mainlogo.href = "/dashboard.html";
-                mainlogo.innerHTML = "Dashboard";
+//                mainlogo.title = "back to dashboard";
+                mainlogo.href = "#";
+                mainlogo.innerHTML = "";
+                mainlogo.target = "";
             }
         }
     },
@@ -379,7 +382,7 @@ module.exports = ext.register("ext/menus/menus", {
         logobar.$ext.style.overflow = "hidden";
 
         anims.animateSplitBoxNode(logobar, {
-            height: "31px",
+            height: "40px",
             timingFunction: "cubic-bezier(.10, .10, .25, .90)",
             duration: 0.2
         }, function(){

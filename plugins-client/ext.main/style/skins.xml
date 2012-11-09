@@ -136,7 +136,7 @@
         .c9-menu-bar {
             position      : relative;
             overflow      : visible;
-            background    : url(images/c9-repeat-x.png) repeat-x 0 0 #49a8fa;
+            background    : url(images/intel-bluebar.png) repeat-x 0 0;
             -moz-user-select: -moz-none;
             -khtml-user-select: none;
             -webkit-user-select: none;
@@ -146,6 +146,12 @@
         .c9-menu-bar .c9-mbar-bcont {
             position   : relative;
             overflow   : visible;
+            background: -moz-linear-gradient(top,  #292929, #242424); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#292929), color-stop(100%,#242424)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(top,  #292929,#242424); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(top,  #292929,#242424); /* Opera 11.10+ */
+            background: -ms-linear-gradient(top,  #292929,#242424); /* IE10+ */
+            background: linear-gradient(top,  #292929,#242424); /* W3C */
         }
 
         .c9-menu-bar .c9-mbar-bcont .c9-offline {
@@ -207,7 +213,7 @@
         .c9-menu-bar .c9-mbar-cont {
             position: relative;
             overflow: hidden;
-            padding: 0 74px 0 22px;
+            padding: 0 74px 0 0;
             margin: 0;
             height: 25px;
             
@@ -257,25 +263,37 @@
             background-position: -21px -70px;
         }
         .c9-mbar-round {
-            background : url(images/c9-no-repeat.png) no-repeat 0 0;
-            height: 37px;
+            background : url(images/intel-logo-bg.png) no-repeat 0 0;
+            height: 67px;
             pointer-events: none;
             position: fixed;
             right: 0;
             top: 0;
-            width: 74px;
+            width: 144px;
             z-index: 999;
         }
         .c9-mbar-round .mainlogo {
-            background: url("images/c9-no-repeat.png") no-repeat 0 -44px;
+            background: url("images/intel-logo.png") no-repeat 0 0;
             display: block;
-            height: 26px;
-            left: 33px;
+            height: 42px;
+            left: 67px;
             pointer-events: all;
             position: absolute;
             text-indent: 100%;
-            top: 4px;
-            width: 37px;
+            top: 11px;
+            width: 64px;
+        }
+        
+        .c9-mbar-logo .poweredby {
+            background: url("images/poweredby-c9.png") no-repeat 0 0;
+            display: block;
+            height: 7px;
+            left: -113px;
+            pointer-events: all;
+            position: absolute;
+            text-indent: 100%;
+            top: 5px;
+            width: 99px;
         }
        .updateAvailable .c9-mbar-round .mainlogo {
            background: url("images/c9-no-repeat.png") no-repeat -96px -44px;
@@ -292,10 +310,10 @@
         .c9-menu-bar .c9-mbar-bcont .c9-activity {
         	background : url(images/c9-no-repeat.png) no-repeat -84px 0;
         	height: 10px;
-        	left: 24px;
+        	left: 47px;
             pointer-events: all;
         	position: absolute;
-        	top: 4px;
+        	top: 16px;
         	width: 10px;
         }
         .c9-menu-bar .c9-mbar-bcont .c9-activity .light {
@@ -354,9 +372,10 @@
             <div class="c9-menu-bar">
                 <div class="c9-mbar-logo">
                     <div class="c9-mbar-bcont">
-                        <div class="c9-mbar-cont"> </div>
+                        <div class="c9-mbar-cont" style="top:9px;"> </div>
                         
                         <div class="c9-mbar-round">
+                            <a href="http://c9.io/" class="poweredby" target="_blank" title="Powered by Cloud9"></a>
                             <a id="backToC9" href="http://c9.io/" class="mainlogo backToC9" target="_blank" title="Go to c9.io">c9.io</a>
                             <div class="c9-activity"><div id="saveStatus" class="light"> </div></div>
                             <div class="c9-local"> </div>
@@ -9521,7 +9540,7 @@
     }
     
     .editor_tab .btnsesssioncontainer {
-        padding : 5px 4px 0 21px;	
+        padding : 5px 96px 0 21px;	
         height: 22px;
         color: #f5f5f5;
         font-family : Arial;
@@ -10134,7 +10153,7 @@
         margin : 0 auto 0 auto;
         background: #e8e8e8 url(images/editor_tab_bg.png) repeat 0 0;
 	*/
-        top : 25%;
+        top : 0;
         margin: 0px auto 0 auto;
         /*background: #e8e8e8 url(images/editor_tab_bg.png) repeat 0 0;*/
         /*border-bottom: 1px solid #8c8c8c;
@@ -10216,6 +10235,14 @@
         margin-top: 20px;
     }
 
+    .editor_tab .editor_bg .editor_welcome_banner {
+        background: url(images/intel-welcome.png) no-repeat center center;
+        height: 69px;
+        width: 498px;
+        margin-left: -33px;
+        padding-bottom: 40px;
+    }
+    
     .editor_tab .session_page {
         display : none;
         position : absolute;
@@ -10390,6 +10417,7 @@
             </div>
             <div class="editor_bg">
                 <div class="editor_bg_message-top">
+                    <div class="editor_welcome_banner"></div>
                     Invite people to this project by sharing the URL with them.
 <!--                    <span>To access private projects both parties must have a Premium Account.</span>-->
                     <div class="editor_divider"></div>
