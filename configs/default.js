@@ -144,7 +144,8 @@ var config = [
             "ext/autosave/autosave",
             "ext/revisions/revisions",
             "ext/quicksearch/quicksearch",
-            "ext/language/liveinspect"
+            "ext/language/liveinspect",
+            "ext/xquery/xquery"
             //"ext/splitview/splitview"
             //"ext/minimap/minimap"
         ]
