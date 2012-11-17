@@ -5,12 +5,8 @@
  */
 define(function(require, exports, module) {
     
-  var traverse = require("treehugger/traverse");
-  var tree = require("treehugger/tree");
-  
-  var XQLint = exports.XQLint = function(code, ast) {
+  var XQLint = exports.XQLint = function(ast) {
 
-    var lines = code.split("\n");
     var ast = ast;
     var markers = [];
     var rootScope = null;
@@ -103,29 +99,24 @@ local = http://www.w3.org/2005/xquery-local-functions
       }
     }
     
-    function getNodeValue(pos) {
+    function getNodeValue(node) {
       var value = "";
-      for(var i = pos.sl; i <= pos.el; i++)
-      {
-        var line = lines[i];
-        if (i == pos.sl && i == pos.el) {
-          value += line.substring(pos.sc, pos.ec);
-        } else if(i == pos.sl) {
-          value += line.substring(pos.sc) + "\n";
-        } else if(i == pos.el) {
-          value += line.substring(0, pos.ec);
-        } else {
-          value += line + "\n";   
+      if(node.value === undefined) {
+        for(var i in node.children)
+        {
+          var child = node.children[i];
+          value += getNodeValue(child);
         }
+      } else {
+        value += node.value;
       }
       return value;
     }
     
     this.registerVarnames = function(node) {
-      for(var i = 0; i<node.length; i++) {
-        var child = node[i];
-        var pos = child.pos;
-        if(child.cons === "VarName") {
+      for(var i = 0; i<node.children.length; i++) {
+        var child = node.children[i];
+        if(child.name === "VarName") {
           this.registerVarDecl(child);
         } else {
           this.visit(child);
@@ -135,11 +126,11 @@ local = http://www.w3.org/2005/xquery-local-functions
     }
     
     this.registerPrefix = function(node) {
-      for(var i = 0; i<node.length; i++) {
-        var child = node[i];
-        if(child.cons === "NCName") {
-          var prefix = getNodeValue(child.getPos());
-          declaredPrefixes[prefix] = currentSchemaImport === null ? node.getPos() : currentSchemaImport;
+      for(var i = 0; i<node.children.length; i++) {
+        var child = node.children[i];
+        if(child.name === "NCName") {
+          var prefix = getNodeValue(child);
+          declaredPrefixes[prefix] = currentSchemaImport === null ? node.pos : currentSchemaImport;
         } else {
           this.visit(child);
         }
@@ -149,29 +140,27 @@ local = http://www.w3.org/2005/xquery-local-functions
     
     
     this.visitChildren = function(node) {
-      for(var i = 0; i < node.length; i++) {
-        var child = node[i];   
+      for(var i = 0; i < node.children.length; i++) {
+        var child = node.children[i];   
         this.visit(child);
       }
     };
     
     this.registerVarDecl = function(node) {
-      var pos = node.getPos();
-      var varName = getNodeValue(pos);
-      if(node.cons === "VarName") varName = "$" + varName;
+      var varName = getNodeValue(node);
+      if(node.name === "VarName") varName = "$" + varName;
       if(varName.indexOf(":") == -1) {
         if(currentScope.declaredVars[varName] !== undefined)
-          currentScope.declaredVars[varName].push(pos);
+          currentScope.declaredVars[varName].push(node.pos);
         else
-          currentScope.declaredVars[varName] = [pos];
+          currentScope.declaredVars[varName] = [node.pos];
       }
     };
     
     this.registerVarRef = function(node) {
-      var pos = node.getPos();
-      var varName = getNodeValue(pos);
+      var varName = getNodeValue(node);
       if(varName.indexOf(":") == -1) {
-        currentScope.referencedVars[varName] = pos;
+        currentScope.referencedVars[varName] = node.pos;
       }     
     };
     
@@ -196,7 +185,7 @@ local = http://www.w3.org/2005/xquery-local-functions
     var currentSchemaImport = null;
     
     this.SchemaImport = function(node) {
-      currentSchemaImport = node.getPos();
+      currentSchemaImport = node.pos;
       this.registerPrefix(node);  
       currentSchemaImport = null;
       return true;
@@ -269,7 +258,7 @@ local = http://www.w3.org/2005/xquery-local-functions
     };
     
     this.Wildcard = function(node) {
-      var value = getNodeValue(node.getPos());
+      var value = getNodeValue(node);
       var prefix = value.substring(0, value.indexOf(":"));
       if(prefix != "*") {
         referencedPrefixes[prefix] = true;
@@ -278,7 +267,7 @@ local = http://www.w3.org/2005/xquery-local-functions
     };
     
     this.QName = function(node) {
-      var value = getNodeValue(node.getPos());
+      var value = getNodeValue(node);
       if(value.indexOf(":") !== -1) {
         var prefix = value.substring(0, value.indexOf(":"));
         referencedPrefixes[prefix] = true;
@@ -287,7 +276,7 @@ local = http://www.w3.org/2005/xquery-local-functions
     };
     
     this.EQName = function(node) {
-      var value = getNodeValue(node.getPos());
+      var value = getNodeValue(node);
       if(value.substring(0, 2) !== "Q{" && value.indexOf(":") !== -1) {
         var prefix = value.substring(0, value.indexOf(":"));
         referencedPrefixes[prefix] = true;
@@ -296,15 +285,15 @@ local = http://www.w3.org/2005/xquery-local-functions
     };
     
     this.visit = function(node) {
-      var name = node.cons;
+      var name = node.name;
       var skip = false;
      
      if(typeof this[name] === "function")
        skip = this[name](node) === true ? true : false ;
      
      if(!skip) {
-       for(var i = 0; i < node.length; i++) {
-         var child = node[i];   
+       for(var i = 0; i < node.children.length; i++) {
+         var child = node.children[i];   
          this.visit(child);
        }
      }

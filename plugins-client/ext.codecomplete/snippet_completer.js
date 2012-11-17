@@ -12,9 +12,11 @@ var baseLanguageHandler = require('ext/language/base_handler');
 var completer = module.exports = Object.create(baseLanguageHandler);
 
 var snippetCache = {}; // extension -> snippets
-    
+
+var supportedLangs = ["javascript", "xquery"];
+
 completer.handlesLanguage = function(language) {
-    return language === "javascript";
+    return supportedLangs.indexOf(language) !== -1;
 };
 
 completer.complete = function(doc, fullAst, pos, currentNode, callback) {

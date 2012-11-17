@@ -11,13 +11,7 @@ var XQueryParser = require('ext/xquery/XQueryParser').XQueryParser;
 var XQLint = require('ext/xquery/xqlint').XQLint;
 var JSONParseTreeHandler = require('ext/xquery/JSONParseTreeHandler').JSONParseTreeHandler;
 var handler = module.exports = Object.create(baseLanguageHandler);
-var traverse = require("treehugger/traverse");
-var tree = require("treehugger/tree");
-var completeUtil = require("ext/codecomplete/complete_util");
-
-handler.handlesLanguage = function(language) {
-    return language === 'xquery';
-};
+var Outliner = require('ext/xquery/visitors/outliner').Outliner;
 
 handler.convertPosition = function(code, begin, end)
 {
@@ -30,40 +24,28 @@ handler.convertPosition = function(code, begin, end)
   return {sl: startline - 1, sc: startcolumn - 1, el: endline - 1, ec: endcolumn - 1};
 };
 
-handler.toTreeHugger = function(code, ast) {
-  var name = ast.name;
-  var children = [];
-  for(var i in ast.children) {
-    var child = ast.children[i];
-    var n = handler.toTreeHugger(code, child);
-    children.push(n);
-  }
-  var pos = handler.convertPosition(code, ast.begin, ast.end);
-  var node = tree.cons(name, children);
-  node.setAnnotation("pos", pos);
-  return node;
+handler.handlesLanguage = function(language) {
+    return language === 'xquery';
 };
 
 handler.parse = function(code, callback) {
-    var h = new JSONParseTreeHandler();
+    var h = new JSONParseTreeHandler(code);
     var parser = new XQueryParser(code, h);
     var ast = null;
     try {
       parser.parse_XQuery();
       ast = h.getParseTree();
-      ast = handler.toTreeHugger(code, ast);
-      traverse.addParentPointers(ast);
     } catch(e) {
       if(e.getBegin !== undefined) {
         var pos = handler.convertPosition(code, e.getBegin(), e.getEnd());
         var message = parser.getErrorMessage(e);
-        ast = ast === null ? tree.cons("XQuery", []) : ast;
-        ast.setAnnotation("error", {
+        ast = ast === null ? { name: "XQuery" } : ast;
+        ast.error = {
           pos: pos,
           type: "error",
           level: "error",
           message: message
-        });
+        };
       } else {
         throw e;   
       }
@@ -76,14 +58,15 @@ handler.isParsingSupported = function() {
 }; 
 
 handler.findNode = function(ast, pos, callback) {
-    if(typeof ast.findNode === 'function') {
-      callback(ast.findNode(pos));  
-    }
+   //if(typeof ast.findNode === 'function') {
+   //  callback(ast.findNode(pos));  
+   //}
+   callback();
 };
 
 handler.getPos = function(node, callback) {
-    callback(node.getPos());
-};
+    callback(node.pos);
+}; 
 
 handler.analyze = function(doc, ast, callback) {
     callback(handler.analyzeSync(doc, ast));
@@ -91,14 +74,27 @@ handler.analyze = function(doc, ast, callback) {
 
 handler.analyzeSync = function(doc, ast) {
   var markers = [];
-  var error = ast.getAnnotation("error");
+  var error = ast.error;
   if (error) {      
     markers.push(error);
   } else {
-    xqlint = new XQLint(doc.getValue(), ast);
+    var xqlint = new XQLint(ast);
     markers = xqlint.getMarkers();
   }
   return markers;
 };
+
+handler.outline = function(doc, ast, callback) {
+    if (!ast)
+        return callback();
+    callback({ body : extractOutline(doc, ast) });
+};
+
+// This is where the fun stuff happens
+function extractOutline(doc, node) {
+    var outliner = new Outliner(node);
+    return outliner.getOutline();
+};
+
 
 });
