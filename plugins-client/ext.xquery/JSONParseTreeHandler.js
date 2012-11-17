@@ -56,8 +56,8 @@ define(function(require, exports, module){
     }
     
     function popNode(name, end){
-      
-      if(ptr.children !== undefined && ptr.children.length > 0) {
+     
+      if(ptr.children.length > 0) {
         var s = ptr.children[0];
         var e = ptr.children[ptr.children.length - 1];
         ptr.pos.sl = s.pos.sl;
@@ -65,7 +65,7 @@ define(function(require, exports, module){
         ptr.pos.el = e.pos.el;
         ptr.pos.ec = e.pos.ec;
       }
-
+      
       if(ptr.getParent !== null) {
         ptr = ptr.getParent;
         for(var i in ptr.children) {
@@ -74,6 +74,14 @@ define(function(require, exports, module){
       } else {
         delete ptr.getParent;
       }
+
+      //Parse tree size optimization
+      //if(ptr.children.length > 0) {
+      //  var lastChild = ptr.children[ptr.children.length - 1];
+      //  if(lastChild.children.length === 1) {
+      //    ptr.children[ptr.children.length - 1] = lastChild.children[0];
+      //  }
+      //}
     }
  
     this.peek = function() {

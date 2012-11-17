@@ -148,7 +148,8 @@ local = http://www.w3.org/2005/xquery-local-functions
     
     this.registerVarDecl = function(node) {
       var varName = getNodeValue(node);
-      if(node.name === "VarName") varName = "$" + varName;
+      console.log(varName);
+      if(node.name === "VarName" || node.name === "EQName") varName = "$" + varName;
       if(varName.indexOf(":") == -1) {
         if(currentScope.declaredVars[varName] !== undefined)
           currentScope.declaredVars[varName].push(node.pos);
@@ -250,7 +251,13 @@ local = http://www.w3.org/2005/xquery-local-functions
     };
     
     this.Param = function(node) {
-      this.registerVarDecl(node);
+      for(var i in node.children) {
+        var child = node.children[i];
+        if(child.name === "EQName") {
+          this.registerVarDecl(child);
+        }
+      }
+      return true;
     };
     
     this.VarRef = function(node) {
