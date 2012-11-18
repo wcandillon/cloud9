@@ -6,7 +6,6 @@
  */
 define(function(require, exports, module) {
 
-var ide = require("core/ide");
 var ext = require("core/ext");
 var editors = require("ext/editors/editors");
 var language = require("ext/language/language");
@@ -20,7 +19,7 @@ module.exports = ext.register("ext/xquery/xquery", {
     alone   : true,
     
     hook: function() {
-      language.registerLanguageHandler('ext/xquery/parser');
+      language.registerLanguageHandler('ext/xquery/compiler');
     },
 
     enable : function() {

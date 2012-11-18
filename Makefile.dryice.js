@@ -74,7 +74,7 @@ function worker(project) {
                     'ext/codecomplete/mode_completer',
                     'ext/linereport/linereport_base',
                     'ext/linereport_php/linereport_php_worker',
-                    'ext/xquery/parser'
+                    'ext/xquery/compiler'
                 ]
             })
         ],

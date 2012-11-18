@@ -1,5 +1,12 @@
 {
+    "xquery encoding": "xquery encoding \"^^\";",
+    "xquery version": "xquery version \"^^\" encoding \"UTF-8\";",
+    "module namespace": "module namespace lib = \"^^\";",
+    "import module namespace": "import module namespace ns = \"^^\";",
+    "import schema namespace": "import schema namespace ns = \"^^\";",
+    "import schema default element namespace": "import schema default element namespace \"^^\";",
+    "declare namespace": "declare namespace ns = \"^^\";",
     "declare function": "declare function ^^(){\n ()\n};",
     "for tumbling window": "for tumbling window $w in ()\nstart at $s when fn:true()\nonly end at $e when $e - $s eq 1\nreturn $w",
-    "for": "for $item in ^^ return $item"
+    "for": "for $item in ^^\nreturn $item"
 }
