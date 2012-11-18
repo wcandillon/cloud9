@@ -25,10 +25,7 @@ handler.isParsingSupported = function() {
 }; 
 
 handler.findNode = function(ast, pos, callback) {
-   //if(typeof ast.findNode === 'function') {
-   //  callback(ast.findNode(pos));  
-   //}
-   callback();
+   callback(findNode(ast, pos));
 };
 
 handler.getPos = function(node, callback) {
@@ -55,5 +52,27 @@ handler.outline = function(doc, ast, callback) {
         return callback();
     callback({ body: ast.outline });
 };
+
+function findNode(ast, pos) {
+  var p = ast.pos;
+  if(inRange(p, pos)) {
+    return this;
+  } else {
+    return null;
+  }
+}
+
+function inRange(p, pos, exclusive) {
+    if(p && p.sl <= pos.line && pos.line <= p.el) {
+        if(p.sl < pos.line && pos.line < p.el)
+            return true;
+        else if(p.sl == pos.line && pos.line < p.el)
+            return p.sc <= pos.col;
+        else if(p.sl == pos.line && p.el === pos.line)
+            return p.sc <= pos.col && pos.col <= p.ec + (exclusive ? 1 : 0);
+        else if(p.sl < pos.line && p.el === pos.line)
+            return pos.col <= p.ec + (exclusive ? 1 : 0);
+    }
+}
 
 });
