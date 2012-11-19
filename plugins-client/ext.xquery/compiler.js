@@ -6,9 +6,13 @@
  */
 define("ext/xquery/compiler", ["require", "exports", "module"], function(require, exports, module) {
 
+var completeUtil = require("ext/codecomplete/complete_util");
+var xqCompletion = require('ext/xquery/xquery_completion');
 var baseLanguageHandler = require('ext/language/base_handler');
 var Compiler = require('ext/xquery/lib/Compiler').Compiler;
 var handler = module.exports = Object.create(baseLanguageHandler);
+
+var builtin = null;
 
 handler.handlesLanguage = function(language) {
     return language === 'xquery';
@@ -53,6 +57,21 @@ handler.outline = function(doc, ast, callback) {
     callback({ body: ast.outline });
 };
 
+handler.complete = function(doc, fullAst, pos, currentNode, callback) {
+    if(builtin === null) {
+      var text = completeUtil.fetchText(this.staticPrefix, 'ext/xquery/lib/builtin.json');
+      builtin = JSON.parse(text);
+    }
+    
+    var line = doc.getLine(pos.row);
+    
+    //TODO: propose URI completion non ast based
+    if(currentNode !== undefined && currentNode.name === "URILiteral") {
+      callback(xqCompletion.completeURI(line, pos, builtin));
+    } else {
+      callback(xqCompletion.complete(line, pos, builtin, fullAst.stcx));
+    }
+};
 
 function findNode(ast, pos) {
   var p = ast.pos;
@@ -61,7 +80,7 @@ function findNode(ast, pos) {
       var child = ast.children[i];
       var n = findNode(child, pos);
       if(n !== null)
-        return n
+        return n;
     }
     return ast;
   } else {
