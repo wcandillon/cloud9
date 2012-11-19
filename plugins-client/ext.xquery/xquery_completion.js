@@ -11,7 +11,7 @@ var completeUtil = require("ext/codecomplete/complete_util");
 var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
 var qnameRegex = /\$?[a-zA-Z_0-9:\-#]/;
 
-module.exports.completeURI = function completeURI(line, pos, builtin) {
+function completeURI(line, pos, builtin) {
     var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin));
     return matches.map(function(uri) {
@@ -29,29 +29,92 @@ module.exports.completeURI = function completeURI(line, pos, builtin) {
     });
 };
 
-module.exports.completeVariable = function completeVariable(line, pos, builtin, stcx) {
+function completeVariable(identifier, pos, builtin, stcx) {
   var markers = [];
+  
   return markers;
 };
 
-module.exports.completeFunction = function completeFunction(line, pos, builtin, stcx) {
-  var markers = [];
-  return markers;
-};
+function completeNSFunctions(pfx, local, pos, builtin, sctx) {
+    var ns = sctx.namespaces[pfx];
+    //console.log(ns);
+    var names = Object.keys(builtin[ns].functions);
+    for(var i in names) {
+        names[i] = pfx + ":" + names[i];
+    }
+    
+    var matches = completeUtil.findCompletions(pfx+local, names);
+    return matches.map(function(name) {
+      //console.log(name);
+      //TODO support multiple arities
+      var local = name.substring(name.indexOf(":") + 1);
+      //console.log(local);
+      var fn = builtin[ns].functions[local][0];
+      var args = "(" +  fn.params.join(", ") + ")";
+      return {
+          doc: fn.doc,
+          docUrl: fn.docUrl,
+          icon: "method",
+          isFunction: true,
+          name: name + args,
+          priority: 4,
+          replaceText: name + args,
+          identifierRegex: uriRegex
+      };
+    });
+}
 
-module.exports.complete = function(line, pos, builtin, stcx) {
+function completeDefaultFunctions(identifier, pos, builtin, sctx) {
+    var ns = sctx.defaultFnNs;
+    var matches = completeUtil.findCompletions(identifier, Object.keys(builtin[ns].functions));
+    return matches.map(function(name) {
+      //TODO support multiple arities
+      var fn = builtin[ns].functions[name][0];
+      var args = "(" +  fn.params.join(", ") + ")";
+      return {
+          doc: fn.doc,
+          docUrl: fn.docUrl,
+          icon: "method",
+          isFunction: true,
+          name: name + args,
+          priority: 4,
+          replaceText:  name + args,
+          identifierRegex: uriRegex
+      };
+    });
+}
+
+function completeFunction(identifier, pos, builtin, sctx) {
   var markers = [];
-  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, qnameRegex);
-  var isVar = identifier.substring(0, 1) === "$";
-  console.log(identifier);
-  if(isVar) {
-    markers = completeVariable(line, pos, builtin, fullAst.sctx);
+  var pfx = identifier.substring(0, identifier.indexOf(":"));
+  var local = identifier.substring(identifier.indexOf(":") + 1);
+  
+  //console.log("Prefix" + pfx);
+  //console.log("Local: " + local);
+  if(pfx === "") {
+    return completeDefaultFunctions(identifier, pos, builtin, sctx);
   } else {
-    markers = completeFunction(line, pos, builtin, fullAst.sctx);
+    return completeNSFunctions(pfx, local, pos, builtin, sctx);
   }
   return markers;
 };
 
+function completeExpr(line, pos, builtin, sctx) {
+  var markers = [];
+  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, qnameRegex);
+  var isVar = identifier.substring(0, 1) === "$";
+  //console.log(identifier);
+  if(isVar) {
+    markers = completeVariable(identifier, pos, builtin, sctx);
+  } else {
+    markers = completeFunction(identifier, pos, builtin, sctx);
+  }
+  return markers;
+};
 
+module.exports.completeURI = completeURI;
+module.exports.completeExpr = completeExpr;
+module.exports.completeVariable = completeVariable;
+module.exports.completeFunction = completeFunction;
 
 });

@@ -69,7 +69,7 @@ handler.complete = function(doc, fullAst, pos, currentNode, callback) {
     if(currentNode !== undefined && currentNode.name === "URILiteral") {
       callback(xqCompletion.completeURI(line, pos, builtin));
     } else {
-      callback(xqCompletion.complete(line, pos, builtin, fullAst.stcx));
+      callback(xqCompletion.completeExpr(line, pos, builtin, fullAst.sctx));
     }
 };
 

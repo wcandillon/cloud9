@@ -524,6 +524,7 @@ define(function(require, exports, module){
       ast.outline = outline;
       ast.sctx = rootSctx;
       ast.sctx.namespaces = namespaces;
+      ast.sctx.defaultFnNs = defaultFnNs;
       return ast;
     };
   };
