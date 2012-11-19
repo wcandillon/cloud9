@@ -53,10 +53,17 @@ handler.outline = function(doc, ast, callback) {
     callback({ body: ast.outline });
 };
 
+
 function findNode(ast, pos) {
   var p = ast.pos;
-  if(inRange(p, pos)) {
-    return this;
+  if(inRange(p, pos) === true) {
+    for(var i in ast.children) {
+      var child = ast.children[i];
+      var n = findNode(child, pos);
+      if(n !== null)
+        return n
+    }
+    return ast;
   } else {
     return null;
   }
