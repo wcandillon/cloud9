@@ -74,7 +74,8 @@ define(function(require, exports, module){
       for(var i in varDecls) {
         var varDecl = varDecls[i];
         var varRef  = varRefs[i];
-        if(varRef === undefined) {
+        //We don't throw unused variable warnings for public VarDecl
+        if(varRef === undefined && varDecl.kind != "VarDecl") {
           markers.push(Errors.unusedVar(varDecl.pos, i));
         }
       }
@@ -272,8 +273,9 @@ define(function(require, exports, module){
     };
     
     var fnParams = [];
-    
+    var isExternal = false;
     this.FunctionDecl = function(node) {
+      isExternal = node.children[node.children.length - 1].name === "TOKEN";
       fnParams = [];
       var name = "";
       var displayPos = null;
@@ -309,7 +311,7 @@ define(function(require, exports, module){
           var value = getNodeValue(varName);
           if(value.substring(0, 2) !== "Q{") {
             if(sctx.varDecls[value] === undefined) {
-              sctx.varDecls[value] = { pos: node.pos };
+              sctx.varDecls[value] = { pos: node.pos, kind: node.name };
             } else if(node.name == "Param"){
               markers.push(Errors.XQST0039(node.pos, value));
             } else {
@@ -323,8 +325,17 @@ define(function(require, exports, module){
     };
     
     this.Param = function(node) {
-      this.visitChildren(node, new VarDeclHandler(node));
+      //We don't process external functions
+      if(!isExternal)
+        this.visitChildren(node, new VarDeclHandler(node));
       return true;  
+    };
+
+    this.QuantifiedExpr = function(node) {
+      pushSctx();
+      this.visitChildren(node, new VarDeclHandler(node));
+      popSctx();
+      return true;
     };
    
     var clauseCount = [];
