@@ -1,0 +1,14 @@
+{
+    "name": "ext.28msec",
+    "version": "0.0.1",
+    "main": "28msec-ext.js",
+    "private": true,
+    "plugin": {
+        "provides": [
+            "ext.28msec"
+        ],
+        "consumes": [
+            "client-plugins"
+        ]
+    }
+}
