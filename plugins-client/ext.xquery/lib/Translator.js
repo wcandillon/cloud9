@@ -46,6 +46,7 @@ define(function(require, exports, module){
       "local": "http://www.w3.org/2005/xquery-local-functions",
       "xs": "http://www.w3.org/2001/XMLSchema",
       "fn": "http://www.w3.org/2005/xpath-functions",
+      "jn": "http://www.jsoniq.org/functions",
       "an": "http://www.zorba-xquery.com/annotations",
       "db": "http://www.zorba-xquery.com/modules/store/static/collections/dml",
       "idx": "http://www.zorba-xquery.com/modules/store/static/indexes/dml",
@@ -53,7 +54,11 @@ define(function(require, exports, module){
       "err": "http://www.w3.org/2005/xqt-error"
     };
     
-    var declaredNS = {};
+    var declaredNS = {
+      "jn": { ns: "http://www.jsoniq.org/functions", pos: { sl: 0, sc: 0, el: 0, ec: 0 }, type: "module", auto: true },
+      "fn": { ns: "http://www.w3.org/2005/xpath-functions", pos: { sl: 0, sc: 0, el: 0, ec: 0 }, type: "module", auto: true }
+    };
+    
     var referencedPrefixes = {};
     
     var rootSctx = new StaticContext();
@@ -75,7 +80,7 @@ define(function(require, exports, module){
         var varDecl = varDecls[i];
         var varRef  = varRefs[i];
         //We don't throw unused variable warnings for public VarDecl
-        if(varRef === undefined && varDecl.kind != "VarDecl") {
+        if(varRef === undefined && varDecl.kind !== "VarDecl") {
           markers.push(Errors.unusedVar(varDecl.pos, i));
         }
       }
@@ -93,11 +98,19 @@ define(function(require, exports, module){
       
       sctx = sctx.parent;
     }
+    
+    function resolveQName(value) {
+      if(value.substring(0, 2) === "Q{") {
+          
+      } else {
+        return value;
+      }
+    }
 
     this.XQuery = function(node) {
-      pushSctx();
+      //pushSctx();
       this.visitChildren(node);
-      popSctx();
+      //popSctx();
       
       //Check for duplicates in namespaces declarations and unused namespace declarations
       var dNS = {};
@@ -105,13 +118,13 @@ define(function(require, exports, module){
         var ns = declaredNS[prefix].ns;
         var pos = declaredNS[prefix].pos;
         var type = declaredNS[prefix].type;
-        if(referencedPrefixes[prefix] === undefined) {
+        if(referencedPrefixes[prefix] === undefined && declaredNS[prefix].auto === undefined) {
           var msg = '"' + prefix + '": unused namespace prefix.';
           markers.push(Errors.warning(pos, msg));
         }
         if(dNS[ns] === undefined) {
           dNS[ns] = {prefix: prefix, positions: [pos]};
-        } else if(type === "decl"){
+        } else if(type !== "schema"){
           dNS[ns].positions.push(pos);
         }
       }
@@ -126,7 +139,7 @@ define(function(require, exports, module){
         }
       }
       return true;
-    };  
+    };
     
     this.ModuleDecl = function(node) {
       isMainModule = false;
@@ -275,7 +288,7 @@ define(function(require, exports, module){
     var fnParams = [];
     var isExternal = false;
     this.FunctionDecl = function(node) {
-      isExternal = node.children[node.children.length - 1].name === "TOKEN";
+      isExternal = node.children[node.children.length - 1].value === "external";
       fnParams = [];
       var name = "";
       var displayPos = null;
@@ -299,14 +312,58 @@ define(function(require, exports, module){
       return true;
     };
     
+    var statementCount = [];
     this.StatementsAndOptionalExpr = function(node) {
       pushSctx();
+      statementCount.push(0);
       this.visitChildren(node);
+      for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
+        popSctx();
+      }
+      statementCount.pop();
       popSctx();
       return true;
     };
     
+    this.StatementsAndExpr = function(node) {
+      pushSctx();
+      statementCount.push(0);
+      this.visitChildren(node);
+      for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
+        popSctx();
+      }
+      statementCount.pop();
+      popSctx();
+      return true;
+    };
+    
+    this.BlockStatement = function(node) {
+      pushSctx();
+      statementCount.push(0);
+      this.visitChildren(node);
+      for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
+        popSctx();
+      }
+      statementCount.pop();
+      popSctx();
+      return true;
+    };
+    
+    this.visitExprSingles = function(node) {
+      for(var i in node.children) {
+        var child = node.children[i];
+        if(child.name === "ExprSingle" || child.name === "VarValue" || child.name === "VarDefaultValue") {
+          this.visit(child);
+        }
+      }
+    };
+    
     var VarDeclHandler = function(node) {
+        
+        this.ExprSingle = this.VarValue = this.VarDefaultValue = function(exprSingle) {
+          return true;
+        };
+        
         this.VarName = this.EQName = function(varName) {
           var value = getNodeValue(varName);
           if(value.substring(0, 2) !== "Q{") {
@@ -331,13 +388,15 @@ define(function(require, exports, module){
       return true;  
     };
 
+    
     this.QuantifiedExpr = function(node) {
       pushSctx();
+      this.visitExprSingles(node);
       this.visitChildren(node, new VarDeclHandler(node));
       popSctx();
       return true;
     };
-   
+    
     var clauseCount = [];
     this.FLWORExpr = function(node) {
       pushSctx();
@@ -351,14 +410,29 @@ define(function(require, exports, module){
       
       popSctx();
       return true;
-    };  
+    };
+    
+    //this.Statements = function(node) {
+      //pushSctx();
+      //this.visitChildren(node);
+      //popSctx();
+    //};
+    
+    //this.Statement = function(node) {
+    //  this.visitChildren(node);
+    //  return true;
+    //};
     
     this.VarDeclStatement = function(node){
+      this.visitExprSingles(node);
+      pushSctx();
+      statementCount[statementCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
     };
 
     this.LetBinding = function(node){
+      this.visitExprSingles(node);
       pushSctx();
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
@@ -366,6 +440,7 @@ define(function(require, exports, module){
     };
 
     this.ForBinding = function(node) {
+      this.visitExprSingles(node);
       pushSctx();
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
@@ -373,6 +448,7 @@ define(function(require, exports, module){
     };
     
     this.TumblingWindowClause = function(node) {
+      this.visitExprSingles(node);
       pushSctx();
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
@@ -394,6 +470,7 @@ define(function(require, exports, module){
     };
 
     this.SlidingWindowClause = function(node) {
+      this.visitExprSingles(node);
       pushSctx();
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
@@ -427,14 +504,6 @@ define(function(require, exports, module){
       return true;
     };
     
-    this.BlockExpr = function(node) {
-      pushSctx();
-      this.visitChildren(node);
-      popSctx();
-      return true;
-    };
-    
-    
     var name = "";
     var displayPos = null;
     this.VarDecl = function(node) {
@@ -444,6 +513,9 @@ define(function(require, exports, module){
           displayPos = node.pos;
         };
       };
+      pushSctx();
+      this.visitExprSingles(node);
+      popSctx();
       this.visitChildren(node, new Handler(node));
       this.visitChildren(node, new VarDeclHandler(node));
       outline.push({

@@ -75,8 +75,8 @@ function worker(project) {
                     'ext/linereport/linereport_base',
                     'ext/linereport_php/linereport_php_worker',
                     'ext/xquery/compiler',
-                    'ext/28msec/compiler'
-                    'ext/linereport_python/linereport_python_worker',
+                    'ext/28msec/compiler',
+                    'ext/linereport_python/linereport_python_worker'
                 ]
             })
         ],

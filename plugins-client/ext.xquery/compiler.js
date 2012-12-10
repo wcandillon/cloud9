@@ -10,6 +10,7 @@ var completeUtil = require("ext/codecomplete/complete_util");
 var xqCompletion = require('ext/xquery/xquery_completion');
 var baseLanguageHandler = require('ext/language/base_handler');
 var Compiler = require('ext/xquery/lib/Compiler').Compiler;
+var Utils = require('ext/xquery/lib/utils').Utils;
 var handler = module.exports = Object.create(baseLanguageHandler);
 
 var builtin = null;
@@ -29,7 +30,7 @@ handler.isParsingSupported = function() {
 }; 
 
 handler.findNode = function(ast, pos, callback) {
-   callback(findNode(ast, pos));
+   callback(Utils.findNode(ast, pos));
 };
 
 handler.getPos = function(node, callback) {
@@ -41,13 +42,9 @@ handler.analyze = function(doc, ast, callback) {
 };
 
 handler.analyzeSync = function(doc, ast) {
-  var markers = [];
+  var markers = ast.markers;
   var error = ast.error;
-  if (error) {      
-    markers.push(error);
-  } else {
-    markers = ast.markers;
-  }
+  //If syntax error, don't show warnings.
   return markers;
 };
 
@@ -73,32 +70,23 @@ handler.complete = function(doc, fullAst, pos, currentNode, callback) {
     }
 };
 
-function findNode(ast, pos) {
-  var p = ast.pos;
-  if(inRange(p, pos) === true) {
-    for(var i in ast.children) {
-      var child = ast.children[i];
-      var n = findNode(child, pos);
-      if(n !== null)
-        return n;
-    }
-    return ast;
-  } else {
-    return null;
-  }
-}
+  /*
+handler.getVariablePositions = function(doc, fullAst, pos, currentNode, callback) {
+    console.log(currentNode);
+    callback();
 
-function inRange(p, pos, exclusive) {
-    if(p && p.sl <= pos.line && pos.line <= p.el) {
-        if(p.sl < pos.line && pos.line < p.el)
-            return true;
-        else if(p.sl == pos.line && pos.line < p.el)
-            return p.sc <= pos.col;
-        else if(p.sl == pos.line && p.el === pos.line)
-            return p.sc <= pos.col && pos.col <= p.ec + (exclusive ? 1 : 0);
-        else if(p.sl < pos.line && p.el === pos.line)
-            return pos.col <= p.ec + (exclusive ? 1 : 0);
-    }
-}
+  callback({
+    length: c,
+        pos: {
+            row: pos.sl,
+            column: pos.sc
+        },  
+        others: declarations.concat(uses),
+        declarations: declarations,
+        uses: uses
+  }); 
+};
+
+  */
 
 });

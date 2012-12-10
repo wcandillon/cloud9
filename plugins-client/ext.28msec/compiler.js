@@ -32,13 +32,13 @@ handler.analyzeSync = function(doc, ast) {
   
   if(path === null) return markers;
   
-  var path = handler.path.replace(/^\/workspace/, handler.workspaceDir);
-  
+  var path = handler.path;
+  var workspace = handler.workspaceDir;
   //if(handler.filesReadyToCompile[path] !== true) return markers;
   //delete handler.filesReadyToCompile[path];
   
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', "/api/compile?path=" + path, false);
+  xhr.open('GET', "/api/compile?path=" + path + "&workspace=" + workspace, false);
   
   try { 
     xhr.send();

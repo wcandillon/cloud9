@@ -47,6 +47,9 @@ define(function(require, exports, module){
         if(e.getBegin !== undefined) {
           var pos = Utils.convertPosition(code, e.getBegin(), e.getEnd());
           var message = parser.getErrorMessage(e);
+          if(pos.sc === pos.ec) {
+            pos.ec++;
+          }
           error = {
             pos: pos,
             type: "error",
@@ -58,10 +61,13 @@ define(function(require, exports, module){
         }
       }
       ast = h.getParseTree();
+      //Utils.removeParentPtr(ast);
+      //console.log(JSON.stringify(ast, null, 2));
       var translator = new Translator(ast);
       ast = translator.translate();
       if(error !== null) {
         ast.markers.push(error);  
+        ast.error = true;
       }
       return ast;
     }
