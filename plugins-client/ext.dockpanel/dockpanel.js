@@ -5,6 +5,8 @@
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
 
+ /*global hboxDockPanel*/
+
 define(function(require, exports, module) {
 
 var ext = require("core/ext");
@@ -15,22 +17,22 @@ var settings = require("ext/settings/settings");
 var anims = require("ext/anims/anims");
 
 module.exports = ext.register("ext/dockpanel/dockpanel", {
-    name           : "Dock Panel",
-    dev            : "Ajax.org",
-    alone          : true,
-    type           : ext.GENERAL,
+    name: "Dock Panel",
+    dev: "Ajax.org",
+    alone: true,
+    type: ext.GENERAL,
 
-    defaultState   : {
-        bars : []
+    defaultState: {
+        bars: []
     },
 
-    nodes          : [],
-    dockpanels     : {},
+    nodes: [],
+    dockpanels: {},
 
-    loaded : false,
+    loaded: false,
 
-    initDocTitle     : document.title,
-    notificationMsgs : {},
+    initDocTitle: document.title,
+    notificationMsgs: {},
 
     /**
      * Standard Extension functionality
@@ -105,6 +107,16 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
                     // JSON parse COULD fail
                     try {
                         state = JSON.parse(strSettings);
+                        var defaultBars = _self.defaultState.bars;
+                        for (var i = 0, l = Math.max(state.bars.length, defaultBars.length); i < l; i++) {
+                            if (!defaultBars[i]) {
+                                state.bars[i] = null;
+                                continue;
+                            }
+                            // Code update adding more dockables
+                            if (!state.bars[i] || state.bars[i].sections.length < defaultBars[i].sections.length)
+                                state.bars[i] = defaultBars[i];
+                       }
                     }
                     catch (ex) {}
                 }
@@ -112,17 +124,13 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
                 ide.dispatchEvent("dockpanel.load.settings", {state: state});
                 _self.layout.loadState(state);
                 _self.loaded = true;
-
-                _self.setParentHboxTop(
-                    apf.isFalse(settings.model.queryValue("auto/tabs/@show")) ? -15 : 0,
-                    apf.isFalse(settings.model.queryValue("general/@animateui"))
-                );
+                ide.dispatchEvent("dockpanel.loaded", {state: state});
             });
         });
 
-        ide.addEventListener("tabs.visible", function(e){
-            _self.setParentHboxTop(!e.value ? -15 : 0, e.noanim);
-        });
+        _self.updateParentHboxTop();
+        ide.addEventListener("menus.restore", _self.updateParentHboxTop);        
+        ide.addEventListener("menus.minimize", _self.updateParentHboxTop);
 
         this.nodes.push(
             menus.addItemByPath("View/Dock Panels/", null, 150),
@@ -140,7 +148,7 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
                         catch (ex) {}
                         _self.layout.loadState(state);
 
-                        settings.model.setQueryValue("auto/dockpanel/text()", state)
+                        settings.model.setQueryValue("auto/dockpanel/text()", state);
 
                         _self.saveSettings();
 
@@ -153,21 +161,16 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
         );
     },
 
-    setParentHboxTop : function(top, noAnim){
-        if (noAnim) {
-            hboxDockPanel.$ext.style.top = top + "px";
-        }
-        else {
-            anims.animate(hboxDockPanel.$ext, {
-                top: top + "px"
-            });
-        }
+    updateParentHboxTop : function() {
+        var hbox = hboxDockPanel.$ext;
+        var top = menus.minimized ? 22 : 3;
+        hbox.style.paddingTop = top + "px";
     },
 
     saveSettings : function(){
         clearTimeout(this.$timer);
 
-        var _self = this;;
+        var _self = this;
         this.$timer = setTimeout(function(){
             var state = _self.layout.getState();
 
@@ -191,8 +194,8 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
     destroy : function(){
         menus.remove("View/Dock Panels/Restore Default");
         menus.remove("View/Dock Panels/~", 200);
-
         this.layout.clearState();
+        this.$destroy();
     },
 
     register : function(name, type, options, getPage){
@@ -204,21 +207,28 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
         var layout = this.layout, _self = this;
 
         panel[type].mnuItem = menus.addItemByPath(
-          "View/Dock Panels/" + options.menu.split("/").pop(),
+          (options.menuPath || "View/Dock Panels/") + options.menu.split("/").pop(),
           new apf.item({
             id      : "mnu" + type,
             type    : "check",
             onclick : function(){
                 var page = getPage();
 
-                var uId = _self.getButtons(name, type)[0].uniqueId;
-                layout.show(uId, true);
-                if (layout.isExpanded(uId) < 0)
-                    layout.showMenu(uId);
+                var uId = _self.getButtons(name, type);
+                if (uId.length && (uId = uId[0].uniqueId)) {
+                    if (this.value) {
+                        layout.hide(uId);
+                    }
+                    else {
+                        layout.show(uId, true);
+                        if (layout.isExpanded(uId) < 0)
+                            layout.showMenu(uId);
 
-                page.parentNode.set(page);
+                        page.parentNode.set(page);
+                    }
+                }
             }
-        }));
+        }), options.menuIndex);
     },
 
     //@todo
@@ -313,7 +323,7 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
     },
 
     getBars : function(name, type, state){
-        var state = state || this.layout.getState(true);
+        state = state || this.layout.getState(true);
         var list  = [];
 
         if(!state)
@@ -437,6 +447,7 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
      */
     resetNotificationCount: function(windowIdent){
         if (windowIdent === -1) return;
+        if (!this.dockObjects) return;
 
         for(var doi = 0; doi < this.dockObjects.length; doi++) {
             if (this.dockObjects[doi].ident == windowIdent) {
@@ -486,7 +497,7 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
                 caption += " (" + count + ")";
                 apf.setStyleClass(btnPage.$button, "un-read-message");
                 if(notificationType == "chat") {
-                    btnObj.notificationOpt = options
+                    btnObj.notificationOpt = options;
                     if (options.name) {
                         this.notificationMsgs[options.name] = count;
                         this.updateDocTitleNotifications();
@@ -519,7 +530,7 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
     },
 
     updateDocTitleNotifications: function(){
-        var _self    = this,
+        var _self = this,
             countMsg = 0;
 
         for(var i in this.notificationMsgs) {
@@ -550,6 +561,4 @@ module.exports = ext.register("ext/dockpanel/dockpanel", {
         }
     }
 });
-
-    }
-);
+});

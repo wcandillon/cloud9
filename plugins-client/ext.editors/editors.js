@@ -92,7 +92,7 @@ module.exports = ext.register("ext/editors/editors", {
         if (typeof noAnim == "undefined") {
             noAnim = apf.isFalse(settings.model.queryValue("general/@animateui"));
         }
-        
+
         if (!force || force > 0) {
             if (!preview) {
                 settings.model.setQueryValue("auto/tabs/@show", "true");
@@ -152,6 +152,8 @@ module.exports = ext.register("ext/editors/editors", {
                             btn.$ext.style.top = "6px";
                             btn.$ext.parentNode.style.overflow = "hidden";
                         }
+
+                        ide.dispatchEvent("tab.close", { page: e.page });
 
                         e.page.addEventListener("afterclose", _self.$close);
                     },
@@ -363,7 +365,7 @@ module.exports = ext.register("ext/editors/editors", {
     },
 
     switchEditor : function(path){
-        var page = tabEditors.getPage();
+        var page = ide.getActivePage();
         if (!page || page.type == path)
             return;
 
@@ -556,20 +558,26 @@ module.exports = ext.register("ext/editors/editors", {
         var at     = page.$at;
         var editor = page.$editor;
         var mdl    = page.$model;
+        var clearAll = !!(at && editor);
 
-        mdl.setQueryValue("@changed", 0);
-        page.$doc.dispatchEvent("close");
+        if (clearAll) {
+            mdl.setQueryValue("@changed", 0);
+            page.$doc.dispatchEvent("close");
+        }
 
         if (mdl.data) {
-            mdl.removeXml("data");
+            if (clearAll)
+                mdl.removeXml("data");
             ide.dispatchEvent("closefile", {xmlNode: mdl.data, page: page});
         }
 
-        //mdl.unshare();
-        mdl.destroy();
+        if (clearAll) {
+            //mdl.unshare();
+            mdl.destroy();
 
-        at.reset();
-        at.destroy();
+            at.reset();
+            at.destroy();
+        }
 
         //If there are no more pages left, reset location
         if (tabEditors.getPages().length == 1) {
@@ -955,7 +963,7 @@ module.exports = ext.register("ext/editors/editors", {
                     copy.removeAttribute("saving");
                     pNode.appendChild(copy);
 
-                    var state = pages[i].$editor.getState && pages[i].$editor.getState(pages[i].$doc);
+                    var state = pages[i].$editor && pages[i].$editor.getState && pages[i].$editor.getState(pages[i].$doc);
                     if (state)
                         copy.setAttribute("state", JSON.stringify(state));
 
@@ -1052,7 +1060,6 @@ module.exports = ext.register("ext/editors/editors", {
         var _self   = this;
         var tabs    = tabEditors;
         var row     = options.row;
-        var column  = options.column || 0;
         var text    = options.text;
         var node    = options.node;
         var path    = options.path || (node && node.getAttribute("path"));
@@ -1064,6 +1071,7 @@ module.exports = ext.register("ext/editors/editors", {
             row -= 1;
             var endRow = typeof options.endRow == "number" ? options.endRow - 1 : row;
             var endColumn = options.endColumn;
+            var column = options.column || (options.getColumn ? options.getColumn() : 0);
 
             ace.session.unfold({row: row, column: column || 0});
             if (typeof endColumn == "number")
@@ -1083,10 +1091,11 @@ module.exports = ext.register("ext/editors/editors", {
         }
 
         function focus() {
-            if (!_self.currentEditor.amlEditor)
+            var editor = _self.currentEditor.amlEditor;
+            if (!editor)
                 return;
-            var ace = _self.currentEditor.amlEditor.$editor;
-            if (!ace.$isFocused) {
+            var ace = editor.$editor;
+            if (ace && !ace.$isFocused) {
                 setTimeout(f = function() {
                     ace.focus();
                     ide.dispatchEvent("aftereditorfocus");
@@ -1132,15 +1141,10 @@ module.exports = ext.register("ext/editors/editors", {
         }
     },
 
-    enable : function(){
-    },
-
-    disable : function(){
-    },
-
     destroy : function(){
         menus.remove("View/Tab Bar");
         menus.remove("View/Editors/");
+        this.$destroy();
     }
 });
 

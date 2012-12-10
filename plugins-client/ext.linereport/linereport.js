@@ -4,7 +4,7 @@
  * @copyright 2012, Ajax.org B.V.
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
- 
+
 define(function(require, exports, module) {
 
 var ide = require("core/ide");
@@ -23,12 +23,12 @@ module.exports = ext.register("ext/linereport/linereport", {
     disabled : false,
     deps     : [language, editors],
     nodes    : [],
-    
+
     stdoutBuffers : {},
     stderrBuffers : {},
     saveTriggers  : {},
     firstUsed     : false,
-    
+
     hook: function() {
         var _self = this;
         ide.addEventListener("init.ext/language/language", function() {
@@ -39,37 +39,37 @@ module.exports = ext.register("ext/linereport/linereport", {
             language.registerLanguageHandler("ext/linereport/linereport_base");
         });
     },
-    
+
     onWorkerMessage : function(event) {
         if (ide.readonly || this.isCollabSlave()) {
             this.disabled = true;
             return;
         }
-        
+
         if (!this.firstUsed && event.data.path) {
             this.firstUsed = true;
             this.onFirstUse(event);
         }
-        
-        var doc = window.tabEditors.getPage() && window.tabEditors.getPage().$doc;
+
+        var doc = ide.getActivePage() && ide.getActivePage().$doc;
         var path = event.data.path;
         if (ext.disabled || !doc || (path && path !== util.stripWSFromPath(doc.getNode().getAttribute("path"))))
             return;
         function send() {
-            window.ide.send(event.data.command);
+            ide.send(event.data.command);
         }
         if (!path || !doc.getNode().getAttribute("changed") || doc.getNode().getAttribute("changed") == "0")
             send();
         else
             this.saveTriggers[path] = send;
     },
-    
+
     isCollabSlave : function() {
          var collab = require("core/ext").extLut["ext/collaborate/collaborate"];
          // Use != here instead of !== since we may compare numbers and strings. Yup.
          return collab && collab.ownerUid && collab.myUserId != collab.ownerUid;
     },
-    
+
     onServerMessage : function(event) {
         var message = event.message;
         var id = message.extra && message.extra.linereport_id;
@@ -97,7 +97,7 @@ module.exports = ext.register("ext/linereport/linereport", {
                 break;
         }
     },
-    
+
     onFileSave: function(event) {
         var oldPath = util.stripWSFromPath(event.oldpath);
         if (this.saveTriggers[oldPath]) {
@@ -105,7 +105,7 @@ module.exports = ext.register("ext/linereport/linereport", {
             delete this.saveTriggers[oldPath];
         }
     },
-    
+
     onFirstUse: function(event) {
         // Enable autosave since it makes linereport trigger automatically
         autosave.isAutoSaveEnabled = true;
@@ -115,20 +115,8 @@ module.exports = ext.register("ext/linereport/linereport", {
             language: event.data.language,
             source: event.data.source
         });
-    },
-    
-    enable: function() {
-        this.disabled = false;
-    },
-
-    disable: function() {
-        this.disabled = true;
-    },
-
-    destroy: function() {
-        this.disabled = true;
     }
-    
+
 });
 
 });

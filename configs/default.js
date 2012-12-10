@@ -98,6 +98,7 @@ var config = [
             "ext/help/help",
             "ext/linereport/linereport",
             "ext/linereport_php/linereport_php",
+            "ext/linereport_python/linereport_python",
             //"ext/ftp/ftp",
             "ext/code/code",
             "ext/statusbar/statusbar",
@@ -125,7 +126,7 @@ var config = [
             "ext/offline/offline",
             "ext/stripws/stripws",
             //"ext/testpanel/testpanel",
-            "ext/nodeunit/nodeunit",
+            //"ext/nodeunit/nodeunit",
             "ext/zen/zen",
             "ext/codecomplete/codecomplete",
             "ext/vim/vim",
@@ -147,6 +148,8 @@ var config = [
             "ext/28msec/28msec",
             "ext/language/liveinspect"
             //"ext/splitview/splitview"
+            "ext/language/liveinspect",
+            "ext/splitview/splitview"
             //"ext/minimap/minimap"
         ]
     }, {
@@ -193,6 +196,7 @@ var config = [
     "./cloud9.run.python",
     "./cloud9.run.apache",
     "./cloud9.run.php",
+    "./cloud9.run.other",
     "architect/plugins/architect.log",
     "./cloud9.ide.auth",
     "./cloud9.ide.git",
@@ -210,6 +214,7 @@ var config = [
     "./cloud9.ide.run-apache",
     "./cloud9.ide.run-ruby",
     "./cloud9.ide.run-php",
+    "./cloud9.ide.run-other",
     "./cloud9.run.python",
     "./cloud9.ide.revisions",
     {
