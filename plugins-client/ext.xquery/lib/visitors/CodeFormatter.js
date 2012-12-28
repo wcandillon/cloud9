@@ -27,37 +27,77 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * ***** END LICENSE BLOCK ***** */
- 
+
 define(function(require, exports, module){
-  var StaticContext = exports.StaticContext = function(pos, parent){
-    
-    this.pos = pos;
 
-    this.parent = parent;
-    
-    this.children = [];
-    
-    this.varDecls = {};
-    this.varRefs = {};
-    
-    this.getVarRefs = function(name) {
-      if(this.varDecls[name] !== undefined) {
-        return this.varRefs[name];
-      } else if(this.parent !== undefined) {
-        return this.parent.getVarRefs(name); 
-      } else {
-        return null;
-      }
-    };
+var CodeFormatter = exports.CodeFormatter = function(ast)
+{
+  var indent = "  ";
+  var currentIdent = "";
+  var code = "";
+  
+  function pushIndent() {
+    currentIdent += indent;
+  }
 
-    this.getVarDecl = function(name) {
-      if(this.varDecls[name] !== undefined) {
-        return this.varDecls[name];
-      } else if(this.parent !== undefined) {
-        return this.parent.getVarDecl(name); 
-      } else {
-        return null;
+  function popIndent() {
+    currentIdent = currentIdent.substring(0, currentIdent.length - indent.length);
+  }
+
+  function getNodeValue(node) {
+    var value = "";
+    if(node.value === undefined) {
+      for(var i in node.children)
+      {
+        var child = node.children[i];
+        value += getNodeValue(child);
       }
-    };
+    } else {
+      value += node.value;
+    }
+    return value;
+  }
+
+  this.everythingElse = function(node) {
+    if(node.value !== undefined) {
+      code += node.value;
+      return true;
+    }
   };
+
+  this.WS = function(node) {
+    return true;
+  };
+
+  this.visit = function(node) {
+      var name = node.name;
+      var skip = false;
+     
+     if(typeof this[name] === "function")
+       skip = this[name](node) === true ? true : false ;
+     else
+       skip = this.everythingElse(node) === true ? true : false;
+
+     if(!skip) {
+       this.visitChildren(node);
+     }
+  };
+ 
+  this.visitChildren = function(node, handler) {
+    for(var i = 0; i < node.children.length; i++) {
+      var child = node.children[i];
+      if(handler !== undefined && typeof handler[child.name] === "function") {
+          handler[child.name](child);
+      } else {
+        this.visit(child);
+      }
+    }
+  };
+ 
+  this.format = function(opts) {
+    this.visit(ast);
+    return code;
+  };
+};
+
 });

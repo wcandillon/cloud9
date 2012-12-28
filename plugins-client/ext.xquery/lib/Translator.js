@@ -61,17 +61,20 @@ define(function(require, exports, module){
     
     var referencedPrefixes = {};
     
-    var rootSctx = new StaticContext();
+    var rootSctx = new StaticContext(ast.pos);
     var sctx = rootSctx;
     
-    function pushSctx() {
-      var length = sctx.children.length;
-      var idx = length === 0 ? 0 : length - 1;
-      sctx.children[idx] = new StaticContext(sctx);
-      sctx = sctx.children[idx];
+    function pushSctx(pos) {
+      sctx.children.push(new StaticContext(pos, sctx));
+      sctx = sctx.children[sctx.children.length - 1];
     }
     
-    function popSctx() {
+    function popSctx(pos) {
+     
+      if(pos !== undefined) {
+        sctx.pos.el = pos.el;
+        sctx.pos.ec = pos.ec;
+      }
 
       var varDecls = sctx.varDecls;
       var varRefs  = sctx.varRefs;
@@ -89,10 +92,17 @@ define(function(require, exports, module){
         var varDecl = varDecls[i];
         var varRef  = varRefs[i];
         if(varDecl === undefined){
-          if(sctx.parent.parent === undefined)
-            markers.push(Errors.XPST0008(varRef.pos, i));
-          else
-            sctx.parent.varRefs[i] = varRef;
+          if(sctx.parent.parent === undefined) {
+            for(var j in varRef) {
+              var v = varRef[j];
+              markers.push(Errors.XPST0008(v.pos, i));
+            }
+          } else {
+            if(sctx.parent.varRefs[i] === undefined) {
+              sctx.parent.varRefs[i] = [];
+            }
+            sctx.parent.varRefs[i] = sctx.parent.varRefs[i].concat(varRef);
+          }
         }
       }
       
@@ -292,7 +302,7 @@ define(function(require, exports, module){
       fnParams = [];
       var name = "";
       var displayPos = null;
-      pushSctx();
+      pushSctx(node.pos);
       var Handler = function(){
         this.EQName = function(node) {
           name = getNodeValue(node) + "(";
@@ -314,11 +324,11 @@ define(function(require, exports, module){
     
     var statementCount = [];
     this.StatementsAndOptionalExpr = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       statementCount.push(0);
       this.visitChildren(node);
       for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
-        popSctx();
+        popSctx(node.pos);
       }
       statementCount.pop();
       popSctx();
@@ -326,11 +336,11 @@ define(function(require, exports, module){
     };
     
     this.StatementsAndExpr = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       statementCount.push(0);
       this.visitChildren(node);
       for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
-        popSctx();
+        popSctx(node.pos);
       }
       statementCount.pop();
       popSctx();
@@ -338,11 +348,11 @@ define(function(require, exports, module){
     };
     
     this.BlockStatement = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       statementCount.push(0);
       this.visitChildren(node);
       for(var i = 1; i <= statementCount[statementCount.length - 1]; i++) {
-        popSctx();
+        popSctx(node.pos);
       }
       statementCount.pop();
       popSctx();
@@ -368,7 +378,8 @@ define(function(require, exports, module){
           var value = getNodeValue(varName);
           if(value.substring(0, 2) !== "Q{") {
             if(sctx.varDecls[value] === undefined) {
-              sctx.varDecls[value] = { pos: node.pos, kind: node.name };
+              //varName.pos.sc--;
+              sctx.varDecls[value] = { pos: varName.pos, kind: node.name };
             } else if(node.name == "Param"){
               markers.push(Errors.XQST0039(node.pos, value));
             } else {
@@ -390,7 +401,7 @@ define(function(require, exports, module){
 
     
     this.QuantifiedExpr = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       this.visitExprSingles(node);
       this.visitChildren(node, new VarDeclHandler(node));
       popSctx();
@@ -399,12 +410,12 @@ define(function(require, exports, module){
     
     var clauseCount = [];
     this.FLWORExpr = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       
       clauseCount.push(0);
       this.visitChildren(node);
       for(var i = 1; i <= clauseCount[clauseCount.length - 1]; i++) {
-        popSctx();
+        popSctx(node.pos);
       }
       clauseCount.pop();
       
@@ -425,7 +436,7 @@ define(function(require, exports, module){
     
     this.VarDeclStatement = function(node){
       this.visitExprSingles(node);
-      pushSctx();
+      pushSctx(node.pos);
       statementCount[statementCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -433,7 +444,7 @@ define(function(require, exports, module){
 
     this.LetBinding = function(node){
       this.visitExprSingles(node);
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -441,7 +452,7 @@ define(function(require, exports, module){
 
     this.ForBinding = function(node) {
       this.visitExprSingles(node);
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -449,21 +460,21 @@ define(function(require, exports, module){
     
     this.TumblingWindowClause = function(node) {
       this.visitExprSingles(node);
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
     };
     
     this.WindowVars = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
     }
     
     this.SlidingWindowClause = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -471,7 +482,7 @@ define(function(require, exports, module){
 
     this.SlidingWindowClause = function(node) {
       this.visitExprSingles(node);
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -498,7 +509,7 @@ define(function(require, exports, module){
     };
     
     this.CountClause = function(node) {
-      pushSctx();
+      pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
       this.visitChildren(node, new VarDeclHandler(node));
       return true;
@@ -513,7 +524,7 @@ define(function(require, exports, module){
           displayPos = node.pos;
         };
       };
-      pushSctx();
+      pushSctx(node.pos);
       this.visitExprSingles(node);
       popSctx();
       this.visitChildren(node, new Handler(node));
@@ -576,7 +587,11 @@ define(function(require, exports, module){
         //var prefix = value.substring(0, value.indexOf(":"));
         //var name = value.substring(value.indexOf(":") + 1);
         //console.log("VarRef: " + value);
-        sctx.varRefs[value] = { pos: node.pos }; //({ prefix: prefix, name: name });
+        if(sctx.varRefs[value] === undefined) {
+          sctx.varRefs[value] = [];
+        }
+        node.pos.sc++;
+        sctx.varRefs[value].push({ pos: node.pos }); //({ prefix: prefix, name: name });
       }
       this.visitChildren(node);
       return true;
