@@ -96,9 +96,30 @@ handler.onCursorMovedNode = function(doc, fullAst, cursorPos, currentNode, callb
     var markers = [];
     var enableRefactorings = [];
     
-    console.log(currentNode.name);
-    
-    if(currentNode.name === "QName" && currentNode.getParent &&  currentNode.getParent.name === "DirElemConstructor") {
+    if(currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName"
+         && currentNode.getParent.getParent && currentNode.getParent.getParent.name === "EQName"
+         && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.getParent.name === "FunctionDecl") {
+        
+      enableRefactorings.push("renameVariable");
+      
+      markers.push({ pos: currentNode.pos, type: "occurrence_main"});
+      var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.getParent.arity];
+      for(var i in references) {
+        var pos = references[i];
+        markers.push({ pos: pos, type: "occurrence_other" });
+      }
+    } else if(currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName"
+         && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.name === "FunctionCall") {
+      enableRefactorings.push("renameVariable");
+      var decl = fullAst.sctx.declaredFunctions[currentNode.value][currentNode.getParent.getParent.arity];
+      markers.push({ pos: decl, type: "occurrence_main"});
+      var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.arity];
+      for(var i in references) {
+        var pos = references[i];
+        markers.push({ pos: pos, type: "occurrence_other" });
+      }
+      
+    } else if(currentNode.name === "QName" && currentNode.getParent &&  currentNode.getParent.name === "DirElemConstructor") {
       enableRefactorings.push("renameVariable");
       var dirElemConstructor = currentNode.getParent;
       for(var i in dirElemConstructor.children) {
@@ -139,8 +160,50 @@ handler.getVariablePositions = function(doc, fullAst, pos, currentNode, callback
   if (!fullAst)
     return callback();
     
-    
-    if(currentNode.name === "QName" && currentNode.getParent &&  currentNode.getParent.name === "DirElemConstructor") {
+    if(currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName"
+         && currentNode.getParent.getParent && currentNode.getParent.getParent.name === "EQName"
+         && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.getParent.name === "FunctionDecl") {
+        
+      var declarations = [{ row: currentNode.pos.sl, column: currentNode.pos.sc }];
+      var uses = [];
+      var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.getParent.arity];
+      for(var i in references) {
+        var pos = references[i];
+        uses.push({ row: pos.sl, column: pos.sc });
+      }
+        callback({
+    length: currentNode.pos.ec - currentNode.pos.sc,
+        pos: {
+            row: currentNode.pos.sl,
+            column: currentNode.pos.sc
+        },  
+        others: declarations.concat(uses),
+        declarations: declarations,
+        uses: uses
+  }); 
+  
+    } else if(currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName"
+         && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.name === "FunctionCall") {
+      var decl = fullAst.sctx.declaredFunctions[currentNode.value][currentNode.getParent.getParent.arity];
+      var declarations = [{ row: decl.sl, column: decl.sc }];
+      var uses = [];
+      var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.arity];
+      for(var i in references) {
+        var pos = references[i];
+        uses.push({ row: pos.sl, column: pos.sc });
+      }
+        callback({
+    length: currentNode.pos.ec - currentNode.pos.sc,
+        pos: {
+            row: currentNode.pos.sl,
+            column: currentNode.pos.sc
+        },  
+        others: declarations.concat(uses),
+        declarations: declarations,
+        uses: uses
+  }); 
+      
+    } else if(currentNode.name === "QName" && currentNode.getParent &&  currentNode.getParent.name === "DirElemConstructor") {
       var dirElemConstructor = currentNode.getParent;
       var declarations = [];
       var uses = [];
