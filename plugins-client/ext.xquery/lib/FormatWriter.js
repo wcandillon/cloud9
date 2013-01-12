@@ -31,17 +31,49 @@
 define(function(require, exports, module){
 
 
-  var FormatWriter = exports.FormatWriter = function(indent) {
+  var FormatWriter = exports.FormatWriter = function(indent, maxLineLength) {
     this.DEBUG = false;
     this.curLine = "";
+    this.curLineIndent = "";
     this.result = "";
 
     this.indentAmount = 0;
     this.indentAmountCache = undefined;
+    this.indentBase = []; 
+    this.preIndentAmount = [];
 
     this.newLinesEnabled = true;
+    this.ignoreWSIndent = true; // If true, WS at the beginning of a line is ignored
 
     this.pendingNewLines = 0;
+
+    this.noWrap = [',', ';'];
+
+    this.pushIndentBase = function(amount) {
+      if (amount === undefined) {
+        // Set custom indent to current position
+        amount = this.curLine.length;
+      }
+      this.indentBase.push(amount);
+      this.preIndentAmount.push(this.indentAmount); 
+      this.indentAmount = 0;
+      
+      if (!(this.preIndentAmount.length == this.indentBase.length)){
+        throw "indentBase/preIndentAmount don't match in size";
+      }
+    }
+
+    this.popIndentBase = function() {
+      if (this.indentBase.length === 0){
+        throw "removeCustomIndent() without preceding setCustomIndent()";
+      }
+      this.indentBase.pop();
+      this.indentAmount += this.preIndentAmount.pop();
+      
+      if (!(this.preIndentAmount.length == this.indentBase.length)){
+        throw "indentBase/preIndentAmount don't match in size";
+      }
+    }
 
     function trimRight(str){
       var strip = str.length - 1;
@@ -59,11 +91,36 @@ define(function(require, exports, module){
       return str.substring(strip, str.length);
     }
 
+    this.isCurLineWrapping = function() {
+      return this.pendingNewLines === 0 && this.curLine.indexOf('\n') !== -1;
+    }
+
+    this.wrapCurLine = function() {
+      var wrapIndent;
+      if (this.indentBase.length > 0){
+        wrapIndent = "";
+        var numSpaces = this.indentBase[this.indentBase.length - 1];
+        for (var i = 0; i < numSpaces; i++){
+          wrapIndent += " ";
+        }
+      } else{
+        wrapIndent = this.curLineIndent + indent;
+      }
+     this.curLine = trimRight(this.curLine);
+     this.curLine += '\n' + wrapIndent; 
+    }
 
     // Start line with indentation
     this.initLine = function() {
       if (this.curLine !== ""){
         throw "initLine call on nonempty line";
+      }
+
+      if (this.indentBase.length > 0){
+        var base = this.indentBase[this.indentBase.length - 1];
+        for (var i = 0; i < base; i++){
+          this.curLine += " ";
+        }
       }
 
       if (this.indentAmountCache === undefined){
@@ -72,7 +129,9 @@ define(function(require, exports, module){
       for (var i = 0; i < this.indentAmountCache; i++){
         this.curLine += indent;
       }
+      this.curLineIndent = this.curLine;
       this.indentAmountCache = undefined;
+      
     }
 
     this.pushIndent = function() {
@@ -102,6 +161,24 @@ define(function(require, exports, module){
         this.pendingNewLines--;
       }
 
+    }
+
+    this.lastChar = function(){
+      if (this.pendingNewLines > 0){
+        if (this.newLinesEnabled){
+          return '\n';
+        } else {
+          return ' ';
+        }
+      } else if (!this.isEmpty()){
+        return this.curLine.charAt(this.curLine.length - 1);
+      } else {
+        if (this.result.length > 0){
+          return this.result.charAt(this.result.length - 1);
+        }else {
+          return "";
+        }
+      }
     }
 
     this.getResult = function(){
@@ -154,7 +231,7 @@ define(function(require, exports, module){
       }else {
         // str contains no newlines
         
-        if (this.isEmpty()){
+        if (this.isEmpty() && this.ignoreWSIndent){
 
           // Strip off spaces to preserve indentation
           str = trimLeft(str);
@@ -181,6 +258,17 @@ define(function(require, exports, module){
           return this.appendStr(str);
         }
 
+
+        if (this.noWrap.indexOf(str) === -1) {
+          var lastLineLength = this.curLine.length - this.curLine.lastIndexOf('\n') - 1; 
+          if (lastLineLength + trimRight(str).length > maxLineLength
+              && !(this.result === "" && this.isEmpty())){
+            // Wrap the line, if all of the following is true:
+            // 1. Appending str to curLine would make curLine exceed maxLineLength
+            // 2. We are not currently writing the first content on the first line
+            this.wrapCurLine();
+          }
+        }
         this.curLine += str;
 
       } // else

@@ -7,9 +7,10 @@
 define(function(require, exports, module) {
 
 var completeUtil = require("ext/codecomplete/complete_util");
+var Utils = require('ext/xquery/lib/utils').Utils;
 
 var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
-var qnameRegex = /\$?[a-zA-Z_0-9:\-#]/;
+var qnameRegex = /\$?[a-zA-Z_0-9:\-#]*/;
 
 function completeURI(line, pos, builtin) {
     var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
@@ -29,10 +30,21 @@ function completeURI(line, pos, builtin) {
     });
 };
 
-function completeVariable(identifier, pos, builtin, stcx) {
-  var markers = [];
-  
-  return markers;
+function completeVariable(identifier, pos, builtin, ast) {
+  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column});
+  var decls = sctx.getVarDecls();
+  var names = Object.keys(decls);
+  var matches = completeUtil.findCompletions(identifier, names);
+  return matches.map(function(name) {
+      return {
+          icon: "property",
+          isFunction: false,
+          name: identifier,
+          priority: 4,
+          replaceText: "$" + identifier,
+          identifierRegex: qnameRegex
+      };
+    });
 };
 
 function completeNSFunctions(pfx, local, pos, builtin, sctx) {

@@ -112,7 +112,7 @@ define(function(require, exports, module){
       sctx = sctx.parent;
     }
     
-    function resolveQName(value) {
+    function resolvesEQName(value) {
       if(value.substring(0, 2) === "Q{") {
           
       } else {
@@ -121,9 +121,9 @@ define(function(require, exports, module){
     }
 
     this.XQuery = function(node) {
-      //pushSctx();
+      pushSctx(node.pos);
       this.visitChildren(node);
-      //popSctx();
+      popSctx(node.pos);
       
       //Check for duplicates in namespaces declarations and unused namespace declarations
       var dNS = {};
@@ -392,7 +392,6 @@ define(function(require, exports, module){
         
         this.VarName = this.EQName = function(varName) {
           var value = getNodeValue(varName);
-          
           if(value.substring(0, 2) !== "Q{") {
             if(sctx.varDecls[value] === undefined) {
               sctx.varDecls[value] = { pos: varName.pos, kind: node.name };
@@ -580,7 +579,7 @@ define(function(require, exports, module){
       arity++;
       return false;
     };
-
+    
     this.EQName = function(node) {
       var value = getNodeValue(node);
       if(fnCall) {
@@ -620,7 +619,7 @@ define(function(require, exports, module){
     
     this.VarRef = function(node) {
       var value = getNodeValue(node).substring(1);
-      if(value.substring(0, 2) !== "Q{") {
+      if(value.substring(0, 2) !== "Q{" && value.indexOf(":") === -1) {
         //var prefix = value.substring(0, value.indexOf(":"));
         //var name = value.substring(value.indexOf(":") + 1);
         //console.log("VarRef: " + value);

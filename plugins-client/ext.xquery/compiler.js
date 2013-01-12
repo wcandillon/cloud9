@@ -105,7 +105,7 @@ define("ext/xquery/compiler", ["require", "exports", "module"], function(require
             callback(xqCompletion.completeURI(line, pos, builtin));
         }
         else {
-            callback(xqCompletion.completeExpr(line, pos, builtin, fullAst.sctx));
+            callback(xqCompletion.completeExpr(line, pos, builtin, fullAst));
         }
     };
 
