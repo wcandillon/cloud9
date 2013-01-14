@@ -4,7 +4,7 @@
  * @copyright 2011, Ajax.org B.V.
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
-define("ext/xquery/compiler", ["require", "exports", "module"], function(require, exports, module) {
+define(function(require, exports, module) {
 
     var completeUtil = require("ext/codecomplete/complete_util");
     var xqCompletion = require('ext/xquery/xquery_completion');

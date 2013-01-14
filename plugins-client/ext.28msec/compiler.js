@@ -5,7 +5,7 @@
  * @license GPLv3 <http://www.gnu.org/licenses/gpl.txt>
  */
  
-define("ext/28msec/compiler", ["require", "exports", "module"], function(require, exports, module) {
+define(function(require, exports, module) {
 
 var baseLanguageHandler = require('ext/language/base_handler');
 var handler = module.exports = Object.create(baseLanguageHandler);
