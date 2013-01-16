@@ -47,7 +47,8 @@ function completeVariable(identifier, pos, builtin, ast) {
     });
 };
 
-function completeNSFunctions(pfx, local, pos, builtin, sctx) {
+function completeNSFunctions(pfx, local, pos, builtin, ast) {
+    var sctx = ast.sctx;
     var ns = sctx.namespaces[pfx];
     //console.log(ns);
     var names = Object.keys(builtin[ns].functions);
@@ -76,8 +77,11 @@ function completeNSFunctions(pfx, local, pos, builtin, sctx) {
     });
 }
 
-function completeDefaultFunctions(identifier, pos, builtin, sctx) {
+function completeDefaultFunctions(identifier, pos, builtin, ast) {
+    var sctx = ast.sctx;
     var ns = sctx.defaultFnNs;
+    console.log(ns);
+    console.log(builtin);
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin[ns].functions));
     return matches.map(function(name) {
       //TODO support multiple arities

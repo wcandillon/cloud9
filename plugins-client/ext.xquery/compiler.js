@@ -244,10 +244,12 @@ define(function(require, exports, module) {
             }
 
             var varDecl = currentSctx.getVarDecl(name);
-            markers.push({
-                pos: varDecl.pos,
-                type: "occurrence_main"
-            });
+            if (varDecl) {
+                markers.push({
+                    pos: varDecl.pos,
+                    type: "occurrence_main"
+                });
+            }
         }
 
         callback({
