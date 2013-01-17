@@ -33,6 +33,7 @@ var CRASHED_COMPLETION_TIMEOUT = 6000;
 var MENU_WIDTH = 330;
 var MENU_SHOWN_ITEMS = 9;
 var EXTRA_LINE_HEIGHT = 3;
+var QFBOX_MINTIME = 500;
 
 
 var ignoreMouseOnce = false;
@@ -113,7 +114,7 @@ module.exports = ext.register("ext/xquery/xquery", {
                 return a.row === row;
             } );
             
-            !annos.length || _self.showQuickfixBox(e.x, e.y, annos);
+            !annos.length || _self.showQuickfixBox(e.x, e.y-1, annos);
             
             //if (annos.length > 0)
             //    alert("guttermousedown on row " + row + ", Annotations:\n" + annos);
@@ -157,9 +158,7 @@ module.exports = ext.register("ext/xquery/xquery", {
         });
         
         this.populateQuickfixBox(this.quickFixes);
-        document.addEventListener("click", this.closeQuickfixBox);
-        ace.container.addEventListener("DOMMouseScroll", this.closeQuickfixBox);
-        ace.container.addEventListener("mousewheel", this.closeQuickfixBox);
+
         
                 
         apf.popup.setContent("quickfixBox", barQuickfixCont.$ext);
@@ -173,6 +172,7 @@ module.exports = ext.register("ext/xquery/xquery", {
         
         ignoreMouseOnce = !isPopupVisible();
         
+    
         apf.popup.show("quickfixBox", {
             x        : x, 
             y        : y, 
@@ -189,17 +189,28 @@ module.exports = ext.register("ext/xquery/xquery", {
                 _self.quickfixElement.scrollTop = 0;
             }
         });
+        
+        this.popupTime = new Date().getTime();
+        document.addEventListener("click", this.closeQuickfixBox, false);
+        ace.container.addEventListener("DOMMouseScroll", this.closeQuickfixBox, false);
+        ace.container.addEventListener("mousewheel", this.closeQuickfixBox, false);
     },
 
     closeQuickfixBox : function(event) {
+        var qfBoxTime = new Date().getTime() - xquery.popupTime;
+        if (qfBoxTime < QFBOX_MINTIME){
+            return;
+        }
         
         barQuickfixCont.$ext.style.display = "none";
         if (!editors.currentEditor.amlEditor) // no editor, try again later
             return;
         var ace = editors.currentEditor.amlEditor.$editor;
-        document.removeEventListener("click", this.closeQuickfixBox);
-        ace.container.removeEventListener("DOMMouseScroll", this.closeQuickfixBox);
-        ace.container.removeEventListener("mousewheel", this.closeQuickfixBox);
+        
+        // TODO these calls don't work.
+        document.removeEventListener("click", this.closeQuickfixBox, false);
+        ace.container.removeEventListener("DOMMouseScroll", this.closeQuickfixBox, false);
+        ace.container.removeEventListener("mousewheel", this.closeQuickfixBox, false);
         
         
         if(oldCommandKey) {
@@ -208,8 +219,6 @@ module.exports = ext.register("ext/xquery/xquery", {
         }
         oldCommandKey = oldOnTextInput = null;
         undrawDocInvoke.schedule(HIDE_DOC_DELAY);
-        
-        
     },
     
     /* TODO this returns a dummy quickfix array */
