@@ -15,14 +15,46 @@ var ext = require("core/ext");
 var editors = require("ext/editors/editors");
 var language = require("ext/language/language");
 var markup = require("text!ext/xquery/xquery.xml");
+var lang = require("ace/lib/lang");
+
+var xquery;
 
 
-var MENU_WIDTH = 330;
-var EXTRA_LINE_HEIGHT = 3;
+var oldCommandKey, oldOnTextInput;
 
 var CLASS_SELECTED = "cc_complete_option selected";
 var CLASS_UNSELECTED = "cc_complete_option";
+var SHOW_DOC_DELAY = 1500;
+var SHOW_DOC_DELAY_MOUSE_OVER = 100;
+var HIDE_DOC_DELAY = 1000;
+var AUTO_OPEN_DELAY = 200;
+var AUTO_UPDATE_DELAY = 200;
+var CRASHED_COMPLETION_TIMEOUT = 6000;
+var MENU_WIDTH = 330;
+var MENU_SHOWN_ITEMS = 9;
+var EXTRA_LINE_HEIGHT = 3;
+
+
 var ignoreMouseOnce = false;
+
+
+var isDocShown;
+var isDrawDocInvokeScheduled = false;
+
+var drawDocInvoke = lang.deferredCall(function() {
+    if (isPopupVisible() && xquery.quickFixes[xquery.selectedIdx].doc) {
+        isDocShown = true;
+        txtQuickfixDoc.parentNode.show();
+    }
+    isDrawDocInvokeScheduled = false;
+});
+
+var undrawDocInvoke = lang.deferredCall(function() {
+    if (!isPopupVisible()) {
+        isDocShown = false;
+        txtQuickfixDoc.parentNode.hide();
+    }
+});
 
 function isPopupVisible() {
     return barQuickfixCont.$ext.style.display !== "none";
@@ -39,9 +71,10 @@ module.exports = ext.register("ext/xquery/xquery", {
     alone   : true,
     
     hook: function() {
+        var _self = xquery = this;
+        
         language.registerLanguageHandler('ext/xquery/compiler');
         
-        var _self = this;
         
         ide.addEventListener("afteropenfile", function(event){
             ext.initExtension(_self);
@@ -80,10 +113,10 @@ module.exports = ext.register("ext/xquery/xquery", {
                 return a.row === row;
             } );
             
-            _self.showQuickfixBox(e.x, e.y, annos);
+            !annos.length || _self.showQuickfixBox(e.x, e.y, annos);
             
-            if (annos.length > 0)
-                alert("guttermousedown on row " + row + ", Annotations:\n" + annos);
+            //if (annos.length > 0)
+            //    alert("guttermousedown on row " + row + ", Annotations:\n" + annos);
 
         });
     },
@@ -97,17 +130,18 @@ module.exports = ext.register("ext/xquery/xquery", {
         this.selectedIdx = 0;
         this.scrollIdx = 0;
         this.quickfixEls = [];
-        this.annos = annos;        
+        this.annos = annos;
+        this.quickFixes = [];
         this.quickfixElement = txtQuickfix.$ext;
         this.docElement = txtQuickfixDoc.$ext;
         this.cursorConfig = ace.renderer.$cursorLayer.config;
-        this.lineHeight = this.cursorConfig.lineHeight;
+        this.lineHeight = this.cursorConfig.lineHeight + EXTRA_LINE_HEIGHT;
         var style = dom.computedStyle(this.editor.amlEditor.$ext);
         this.quickfixElement.style.fontSize = style.fontSize;
         
         barQuickfixCont.setAttribute('visible', true);
 
-/*
+
         // Monkey patch
         if(!oldCommandKey) {
             oldCommandKey = ace.keyBinding.onCommandKey;
@@ -115,33 +149,33 @@ module.exports = ext.register("ext/xquery/xquery", {
             oldOnTextInput = ace.keyBinding.onTextInput;
             ace.keyBinding.onTextInput = this.onTextInput.bind(this);
         }
-*/
+
         
+        // Collect all quickfixes for the given annotations
+        annos.forEach(function(anno, idx){
+           _self.quickFixes = _self.quickFixes.concat(_self.getQuickFixes(anno));
+        });
         
-        
-        
-        this.populateQuickfixBox(annos);
+        this.populateQuickfixBox(this.quickFixes);
         document.addEventListener("click", this.closeQuickfixBox);
         ace.container.addEventListener("DOMMouseScroll", this.closeQuickfixBox);
         ace.container.addEventListener("mousewheel", this.closeQuickfixBox);
         
-        
-        
-        
+                
         apf.popup.setContent("quickfixBox", barQuickfixCont.$ext);
-        var boxLength = this.annos.length || 1;
+        var boxLength = this.quickFixes.length || 1;
         var quickfixBoxHeight = 11 + Math.min(10 * this.lineHeight, boxLength * (this.lineHeight));
         var cursorLayer = ace.renderer.$cursorLayer;
         
-        var innerBoxLength = this.annos.length || 1;
+        var innerBoxLength = this.quickFixes.length || 1;
         var innerQuickfixBoxHeight = Math.min(10 * this.lineHeight, innerBoxLength * (this.lineHeight));
         txtQuickfixHolder.$ext.style.height = innerQuickfixBoxHeight + "px";
         
         ignoreMouseOnce = !isPopupVisible();
         
         apf.popup.show("quickfixBox", {
-            x        : x, //(prefix.length * -_self.cursorConfig.characterWidth) - 11,
-            y        : y, //_self.cursorConfig.lineHeight,
+            x        : x, 
+            y        : y, 
             height   : quickfixBoxHeight,
             width    : MENU_WIDTH,
             animate  : false,
@@ -167,114 +201,134 @@ module.exports = ext.register("ext/xquery/xquery", {
         ace.container.removeEventListener("DOMMouseScroll", this.closeQuickfixBox);
         ace.container.removeEventListener("mousewheel", this.closeQuickfixBox);
         
-        /*
+        
         if(oldCommandKey) {
             ace.keyBinding.onCommandKey = oldCommandKey;
             ace.keyBinding.onTextInput = oldOnTextInput;
         }
         oldCommandKey = oldOnTextInput = null;
         undrawDocInvoke.schedule(HIDE_DOC_DELAY);
-        */
+        
         
     },
+    
+    /* TODO this returns a dummy quickfix array */
+    getQuickFixes: function(annotation){
+        var q1 = {
+            text: annotation.text + ": Quickfix 1",
+            doc: "Preview of Quickfix 1"  
+        };
+        var q2 = {
+            text: annotation.text + ": Quickfix 2",
+            doc: "Preview of Quickfix 2"  
+        };
+        return [q1, q2];
+    },
         
-    populateQuickfixBox: function(annotations) {
+    populateQuickfixBox: function(quickFixes) {
         
         var _self = this;
         _self.quickfixElement.innerHTML = "";
         var cursorConfig = code.amlEditor.$editor.renderer.$cursorLayer.config;
         var hasIcons = false;
         
-        /*
-        annotations.forEach(function(anno) {
+        
+        quickFixes.forEach(function(anno) {
             if (anno.icon)
                 hasIcons = true;
         });
-        */
+        
         
         var editor = editors.currentEditor.amlEditor.$editor;
         var pos = editor.getCursorPosition();
         var line = editor.getSession().getLine(pos.row);
         var isInferAvailable = language.isInferAvailable();
-        annotations.forEach(function(anno, idx) {
+
+        // For each quickfix, create a list entry
+        quickFixes.forEach(function(qfix, qfidx){
+
             var annoEl = dom.createElement("div");
-            annoEl.className = idx === _self.selectedIdx ? CLASS_SELECTED : CLASS_UNSELECTED;
+            annoEl.className = qfidx === _self.selectedIdx ? CLASS_SELECTED : CLASS_UNSELECTED;
             var html = "";
             
-            /*
-            if (anno.icon)
-                html = "<img src='" + ide.staticPrefix + "/ext/language/img/" + anno.icon + ".png'/>";
             
+            // TODO: replace this with actual quickfix icons
+            qfix.icon = "method";
+            if (qfix.icon)
+                html = "<img src='" + ide.staticPrefix + "/ext/language/img/" + qfix.icon + ".png'/>";
+
+/*
             var docHead;
-            if (anno.type) {
-                var shortType = _self.$guidToShortString(anno.type);
+            if (qfix.type) {
+                var shortType = _self.$guidToShortString(qfix.type);
                 if (shortType) {
-                    anno.meta = shortType;
-                    docHead = anno.name + " : " + _self.$guidToLongString(anno.type) + "</div>";
+                    qfix.meta = shortType;
+                    docHead = qfix.name + " : " + _self.$guidToLongString(qfix.type) + "</div>";
                 }
             }
-            var prefix = completeUtil.retrievePrecedingIdentifier(line, pos.column, anno.identifierRegex);
-            var trim = anno.meta ? " maintrim" : "";
-            if (!isInferAvailable || anno.icon) {
-                html += '<span class="main' + trim + '"><u>' + prefix + "</u>" + anno.name.substring(prefix.length) + '</span>';
-            }
-            else if (hasIcons) {
-                html += '<span class="main' + trim + '"><span class="deferred">' + anno.name + '</span></span>';
-            }
-            else {
-                html += '<span class="main' + trim + '"><span class="deferred"><u>' + prefix + "</u>" + anno.name.substring(prefix.length) + '</span></span>';
-            }
+            var prefix = completeUtil.retrievePrecedingIdentifier(line, pos.column, qfix.identifierRegex);
+*/
             
-            if (anno.meta)
-                html += '<span class="meta">' + anno.meta + '</span>';
+            html += '<span class="main">' + qfix.text + '</span>';
+
             
-            if (anno.doc)
-                anno.doc = '<p>' + anno.doc + '</p>';
-                
-            if (anno.icon || anno.type)
-                anno.doc = '<div class="code_complete_doc_head">' + (docHead || anno.name) + '</div>' + (anno.doc || "");
-            */
+            // "<span class="main maintrim"><u></u>fn</span><span class="meta">snippet</span>"
+
+            annoEl.innerHTML = html;     
             
-            
-            html = "<p>Annotation at row " + anno.row + ": " + anno.text + "</p>";
-                
-            annoEl.innerHTML = html;
-            
-            
-            /*
             annoEl.addEventListener("mouseover", function() {
                 if (ignoreMouseOnce) {
                     ignoreMouseOnce = false;
                     return;
                 }
-                _self.matchEls[_self.selectedIdx].className = CLASS_UNSELECTED;
-                _self.selectedIdx = idx;
-                _self.matchEls[_self.selectedIdx].className = CLASS_SELECTED;
+                _self.quickfixEls[_self.selectedIdx].className = CLASS_UNSELECTED;
+                _self.selectedIdx = qfidx;
+                _self.quickfixEls[_self.selectedIdx].className = CLASS_SELECTED;
                 _self.updateDoc();
                 if (!isDrawDocInvokeScheduled)
                     drawDocInvoke.schedule(SHOW_DOC_DELAY_MOUSE_OVER);
             });
-            */
             
+            
+            // TODO: add click event listener that applies the quickfix
             /*
             annoEl.addEventListener("click", function() {
                 var amlEditor = editors.currentEditor.amlEditor;
-                replaceText(amlEditor.$editor, anno);
+                replaceText(amlEditor.$editor, qfix);
                 amlEditor.focus();
             });
             */
             
-            annoEl.style.height = cursorConfig.lineHeight + EXTRA_LINE_HEIGHT + "px";
+            annoEl.style.height = cursorConfig.lineHeight + EXTRA_LINE_HEIGHT +  "px";
             annoEl.style.width = (MENU_WIDTH - 10) + "px";
             _self.quickfixElement.appendChild(annoEl);
             _self.quickfixEls.push(annoEl);
         });
+
         _self.updateDoc(true);
         
     },
     
     updateDoc : function(delayPopup) {
+        this.docElement.innerHTML = '<span class="code_complete_doc_body">';
+        var selected = this.quickFixes[this.selectedIdx];
 
+        if (selected && selected.doc) {
+            if (isDocShown) {
+                txtQuickfixDoc.parentNode.show();
+            }
+            else {
+                txtQuickfixDoc.parentNode.hide();
+                if (!isDrawDocInvokeScheduled || delayPopup)
+                    drawDocInvoke.schedule(SHOW_DOC_DELAY);
+            }
+            this.docElement.innerHTML += selected.doc + '</span>';
+        }
+        else {
+            txtQuickfixDoc.parentNode.hide();
+        }
+
+        this.docElement.innerHTML += '</span>';
     },
 
     enable : function() {
@@ -284,7 +338,89 @@ module.exports = ext.register("ext/xquery/xquery", {
     },
 
     destroy : function() {
+    },
+    
+    
+    
+    onTextInput : function(text, pasted) {
+        this.closeQuickfixBox();
+    },
+
+    onKeyPress : function(e, hashKey, keyCode) {
+        var _self = this;
+        
+        if(e.metaKey || e.ctrlKey || e.altKey) {
+            this.closeQuickfixBox();
+            return;
+        }
+        
+        var keyBinding = editors.currentEditor.amlEditor.$editor.keyBinding;
+
+        switch(keyCode) {
+            case 0: break;
+            case 32: // Space
+                this.closeQuickfixBox();
+                break;
+            case 27: // Esc
+                this.closeQuickfixBox();
+                e.preventDefault();
+                break;
+            case 8: // Backspace
+                this.closeQuickfixBox();
+                e.preventDefault();
+                break;
+            case 37:
+            case 39:
+                oldCommandKey.apply(keyBinding, arguments);
+                this.closeQuickfixBox();
+                e.preventDefault();
+                break;
+            case 13: // Enter
+            case 9: // Tab
+                // TODO: apply quickfix
+                this.closeQuickfixBox();
+                e.preventDefault();
+                break;
+            case 40: // Down
+                if (this.quickfixEls.length === 1) {
+                    this.closeQuickfixBox();
+                    break;
+                }
+                e.stopPropagation();
+                e.preventDefault();
+                this.quickfixEls[this.selectedIdx].className = CLASS_UNSELECTED;
+                if(this.selectedIdx < this.quickFixes.length-1)
+                    this.selectedIdx++;
+                this.quickfixEls[this.selectedIdx].className = CLASS_SELECTED;
+                if(this.selectedIdx - this.scrollIdx > MENU_SHOWN_ITEMS) {
+                    this.scrollIdx++;
+                    this.quickfixEls[this.scrollIdx].scrollIntoView(true);
+                }
+                this.updateDoc();
+                break;
+            case 38: // Up
+                if (this.quickfixEls.length === 1) {
+                this.closeQuickfixBox();
+                    break;
+                }
+                e.stopPropagation();
+                e.preventDefault();
+                if (this.selectedIdx <= 0)
+                    return;
+                this.quickfixEls[this.selectedIdx].className = CLASS_UNSELECTED;
+                this.selectedIdx--;
+                this.quickfixEls[this.selectedIdx].className = CLASS_SELECTED;
+                if(this.selectedIdx < this.scrollIdx) {
+                    this.scrollIdx--;
+                    this.quickfixEls[this.scrollIdx].scrollIntoView(true);
+                }
+                this.updateDoc();
+                break;
+        }
     }
+    
+    
+    
 });
 
 });
