@@ -51,7 +51,8 @@ exports.Errors = {
         pos: pos,
         type: WARNING,
         level: WARNING,
-        message: msg
+        message: msg,
+        hasResolution: true
       };
     },
     

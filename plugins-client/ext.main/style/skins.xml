@@ -3722,6 +3722,24 @@
             background-position: -462px -60px;
         }
 
+     	/*
+         * Gutter icons for quickfixable warnings/errors
+         */
+        .ace_gutter-layer .ace_gutter-cell.ace_error_resolvable {
+            background-image: url(images/quickfix_error_obj.gif);
+        }
+        .ace_dark .ace_gutter-layer .ace_gutter-cell.ace_error_resolvable {
+            background-image: url(images/quickfix_error_obj.gif);
+        }
+
+        .ace_gutter-layer .ace_gutter-cell.ace_warning_resolvable {
+            background-image: url(images/quickfix_warning_obj.gif);
+        }
+        .ace_dark .ace_gutter-layer .ace_gutter-cell.ace_warning_resolvable {
+            background-image: url(images/quickfix_warning_obj.gif);
+        }
+
+
         .ace_gutter-layer .ace_gutter-cell.ace_breakpoint {
             background-image: url("icons/debugger/brkp_obj.png");
             background-position: 4px center;
