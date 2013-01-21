@@ -99,9 +99,9 @@ module.exports = ext.register("ext/xquery/xquery", {
     
     initEditor : function(editor){
         var _self = this;
-        _self.editor = editor;
-        
+               
         editor.on("guttermousedown", editor.$markerListener = function(e) {
+             _self.editor = editor;
             if (e.getButton()) // !editor.isFocused()
                 return;
             var gutterRegion = editor.renderer.$gutterLayer.getRegion(e);
@@ -126,7 +126,7 @@ module.exports = ext.register("ext/xquery/xquery", {
         var editor = _self.editor;
         var res = [];
        
-        editor.session.languageAnnos.forEach(function(anno, idx){
+        editor.getSession().languageAnnos.forEach(function(anno, idx){
             if (anno.row == row){
                 res.push(anno);
                 
@@ -142,7 +142,7 @@ module.exports = ext.register("ext/xquery/xquery", {
                 };
                 
                 anno.screenPosition = function(){
-                    return editor.session.documentToScreenPosition(
+                    return editor.getSession().documentToScreenPosition(
                         anno.pos.sl, anno.pos.sc);  
                 };
             }
@@ -205,7 +205,7 @@ module.exports = ext.register("ext/xquery/xquery", {
         
         ignoreMouseOnce = !isPopupVisible();
         
-        var pos = anno.screenPosition();
+        //var pos = anno.screenPosition();
         apf.popup.show("quickfixBox", {
             x        : 0, 
             y        : 0, 
@@ -234,9 +234,7 @@ module.exports = ext.register("ext/xquery/xquery", {
         if (qfBoxTime < QFBOX_MINTIME){
             return;
         }
-        xquery.popupTime = -1;
-        
-        
+    
         barQuickfixCont.$ext.style.display = "none";
         if (!editors.currentEditor.amlEditor) // no editor, try again later
             return;
