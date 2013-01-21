@@ -99,6 +99,7 @@ module.exports = ext.register("ext/xquery/xquery", {
     
     initEditor : function(editor){
         var _self = this;
+        _self.editor = editor;
         
         editor.on("guttermousedown", editor.$markerListener = function(e) {
             if (e.getButton()) // !editor.isFocused()
@@ -108,13 +109,11 @@ module.exports = ext.register("ext/xquery/xquery", {
                 return;
             
             var row = e.getDocumentPosition().row;
-            var annos = editor.session.languageAnnos;
-
-            annos = annos.filter(function(a){
-                return a.row === row;
-            } );
+            var annos = _self.getAnnos(row);
             
-            !annos.length || _self.showQuickfixBox(e.x, e.y-1, annos);
+            if (annos.length > 0){
+                _self.showQuickfixBox(annos[0]);
+            }
             
             //if (annos.length > 0)
             //    alert("guttermousedown on row " + row + ", Annotations:\n" + annos);
@@ -122,16 +121,48 @@ module.exports = ext.register("ext/xquery/xquery", {
         });
     },
     
+    getAnnos: function(row){
+        var _self = this;
+        var editor = _self.editor;
+        var res = [];
+       
+        editor.session.languageAnnos.forEach(function(anno, idx){
+            if (anno.row == row){
+                res.push(anno);
+                
+                /* Select the position of this annotation in the editor
+                 * and return the x,y position one line below the start
+                 * of the selection */
+                anno.select = function(){
+                    var startPos = { row: anno.pos.sl, column: anno.pos.sc };
+                    var endPos = { row: anno.pos.el, column: anno.pos.ec };
+                    editor.getSelection().moveCursorTo(anno.pos.sl, anno.pos.sc, true);
+                    editor.getSelection().setSelectionRange(
+                        {start: startPos, end: endPos});
+                };
+                
+                anno.screenPosition = function(){
+                    return editor.session.documentToScreenPosition(
+                        anno.pos.sl, anno.pos.sc);  
+                };
+            }
+        });
+        
+        res.sort(function(a,b){ return a.pos.sc - b.pos.sc; });
+        
+        return res;
+    },
     
     
-  showQuickfixBox: function(x, y, annos) {
+    
+  showQuickfixBox: function(anno) {
         var _self = this;
         this.editor = editors.currentEditor;
         var ace = this.editor.amlEditor.$editor;
         this.selectedIdx = 0;
         this.scrollIdx = 0;
         this.quickfixEls = [];
-        this.annos = annos;
+        //this.annos = annos;
         this.quickFixes = [];
         this.quickfixElement = txtQuickfix.$ext;
         this.docElement = txtQuickfixDoc.$ext;
@@ -152,10 +183,12 @@ module.exports = ext.register("ext/xquery/xquery", {
         }
 
         
-        // Collect all quickfixes for the given annotations
-        annos.forEach(function(anno, idx){
-           _self.quickFixes = _self.quickFixes.concat(_self.getQuickFixes(anno));
-        });
+        // Collect all quickfixes for the given annotation
+        _self.quickFixes = _self.getQuickFixes(anno);
+        
+        // Select it in the editor
+        anno.select();
+        
         
         this.populateQuickfixBox(this.quickFixes);
 
@@ -172,14 +205,14 @@ module.exports = ext.register("ext/xquery/xquery", {
         
         ignoreMouseOnce = !isPopupVisible();
         
-    
+        var pos = anno.screenPosition();
         apf.popup.show("quickfixBox", {
-            x        : x, 
-            y        : y, 
+            x        : 0, 
+            y        : 0, 
             height   : quickfixBoxHeight,
             width    : MENU_WIDTH,
             animate  : false,
-            //ref      : cursorLayer.cursor,
+            ref      : cursorLayer.cursor,
             callback : function() {
                 barQuickfixCont.setHeight(quickfixBoxHeight);
                 barQuickfixCont.$ext.style.height = quickfixBoxHeight + "px";
@@ -201,6 +234,8 @@ module.exports = ext.register("ext/xquery/xquery", {
         if (qfBoxTime < QFBOX_MINTIME){
             return;
         }
+        xquery.popupTime = -1;
+        
         
         barQuickfixCont.$ext.style.display = "none";
         if (!editors.currentEditor.amlEditor) // no editor, try again later

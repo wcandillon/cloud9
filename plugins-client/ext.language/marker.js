@@ -84,6 +84,7 @@ module.exports = {
                 guttertext: anno.message,
                 type: anno.level || "warning",
                 text: anno.message,
+                pos: anno.pos,
                 hasResolution: anno.hasResolution
                 // row will be filled in updateFloat()
             };
