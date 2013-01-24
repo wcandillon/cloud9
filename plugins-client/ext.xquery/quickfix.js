@@ -41,7 +41,7 @@ var isDocShown;
 var isDrawDocInvokeScheduled = false;
 
 var drawDocInvoke = lang.deferredCall(function() {
-    if (isPopupVisible() && quickfix.quickFixes[quickfix.selectedIdx].doc) {
+    if (isPopupVisible() && quickfix.quickFixes[quickfix.selectedIdx].descr) {
         isDocShown = true;
         txtQuickfixDoc.parentNode.show();
     }
@@ -63,7 +63,7 @@ var commands = require("ext/commands/commands");
 
 module.exports = {
  
-    hook: function(ext, worker) {
+    hook: function(ext) {
         var _self = quickfix = this;
                   
         ide.addEventListener("tab.afterswitch", function(e) {
@@ -167,7 +167,10 @@ module.exports = {
             if (annos[i+1].pos.sc > column){ break; }
         }
         var anno = annos[i];
-        
+        if (!anno.resolutions.length){
+            return;
+        }
+
         this.editor = editors.currentEditor;
         var ace = this.editor.amlEditor.$editor;
         this.selectedIdx = 0;
@@ -192,14 +195,13 @@ module.exports = {
             oldOnTextInput = ace.keyBinding.onTextInput;
             ace.keyBinding.onTextInput = this.onTextInput.bind(this);
         }
-
+        
         
         // Collect all quickfixes for the given annotation
-        _self.quickFixes = _self.getQuickFixes(anno);
+        _self.quickFixes = anno.resolutions;
         
         // Select it in the editor
         anno.select();
-        
         
         this.populateQuickfixBox(this.quickFixes);
 
@@ -263,19 +265,7 @@ module.exports = {
         undrawDocInvoke.schedule(HIDE_DOC_DELAY);
     },
     
-    /* TODO this returns a dummy quickfix array */
-    getQuickFixes: function(annotation){
-        var q1 = {
-            text: annotation.text + ": Quickfix 1",
-            doc: "Preview of Quickfix 1"  
-        };
-        var q2 = {
-            text: annotation.text + ": Quickfix 2",
-            doc: "Preview of Quickfix 2"  
-        };
-        return [q1, q2];
-    },
-        
+    
     populateQuickfixBox: function(quickFixes) {
         
         var _self = this;
@@ -285,7 +275,7 @@ module.exports = {
         
         
         quickFixes.forEach(function(anno) {
-            if (anno.icon)
+            if (anno.image)
                 hasIcons = true;
         });
         
@@ -303,10 +293,8 @@ module.exports = {
             var html = "";
             
             
-            // TODO: replace this with actual quickfix icons
-            qfix.icon = "method";
-            if (qfix.icon)
-                html = "<img src='" + ide.staticPrefix + "/ext/language/img/" + qfix.icon + ".png'/>";
+            if (qfix.image)
+                html = "<img src='" + ide.staticPrefix + qfix.image + "'/>";
 
 /*
             var docHead;
@@ -320,7 +308,7 @@ module.exports = {
             var prefix = completeUtil.retrievePrecedingIdentifier(line, pos.column, qfix.identifierRegex);
 */
             
-            html += '<span class="main">' + qfix.text + '</span>';
+            html += '<span class="main">' + qfix.label + '</span>';
 
             
             // "<span class="main maintrim"><u></u>fn</span><span class="meta">snippet</span>"
@@ -341,14 +329,10 @@ module.exports = {
             });
             
             
-            // TODO: add click event listener that applies the quickfix
-            /*
             annoEl.addEventListener("click", function() {
-                var amlEditor = editors.currentEditor.amlEditor;
-                replaceText(amlEditor.$editor, qfix);
-                amlEditor.focus();
+                _self.applyQuickfix(qfix);
             });
-            */
+            
             
             annoEl.style.height = cursorConfig.lineHeight + EXTRA_LINE_HEIGHT +  "px";
             annoEl.style.width = (MENU_WIDTH - 10) + "px";
@@ -364,7 +348,7 @@ module.exports = {
         this.docElement.innerHTML = '<span class="code_complete_doc_body">';
         var selected = this.quickFixes[this.selectedIdx];
 
-        if (selected && selected.doc) {
+        if (selected && selected.descr) {
             if (isDocShown) {
                 txtQuickfixDoc.parentNode.show();
             }
@@ -373,7 +357,7 @@ module.exports = {
                 if (!isDrawDocInvokeScheduled || delayPopup)
                     drawDocInvoke.schedule(SHOW_DOC_DELAY);
             }
-            this.docElement.innerHTML += selected.doc + '</span>';
+            this.docElement.innerHTML += selected.descr + '</span>';
         }
         else {
             txtQuickfixDoc.parentNode.hide();
@@ -391,7 +375,12 @@ module.exports = {
     destroy : function() {
     },
     
-    
+    applyQuickfix : function(qfix){
+        var amlEditor = editors.currentEditor.amlEditor;
+        var doc = amlEditor.getSession().getDocument();
+        doc.setValue(qfix.appliedContent);
+        amlEditor.focus();
+    },
     
     onTextInput : function(text, pasted) {
         this.closeQuickfixBox();
@@ -427,7 +416,7 @@ module.exports = {
                 break;
             case 13: // Enter
             case 9: // Tab
-                // TODO: apply quickfix
+                this.applyQuickfix(this.quickFixes[this.selectedIdx]);
                 this.closeQuickfixBox();
                 e.preventDefault();
                 break;
@@ -469,10 +458,6 @@ module.exports = {
         }
     },
     
-    setWorker: function(worker) {
-        this.worker = worker;
-    },
-    
     invoke: function(forceBox) {
         var _self = this;
         var editor = editors.currentEditor.amlEditor.$editor;
@@ -486,44 +471,9 @@ module.exports = {
         
         _self.showQuickfixBox(pos.row, pos.column);
         
-        /*
-        editor.addEventListener("change", this.$onChange);
-        // This is required to ensure the updated document text has been sent to the worker before the 'quickfix' message
-        var worker = this.worker;
-        setTimeout(function() {
-            worker.emit("quickfix", {data: { pos: editor.getCursorPosition() }});
-        });
-                if(forceBox)
-            killCrashedCompletionInvoke(CRASHED_COMPLETION_TIMEOUT);
-        */
+
     }
-    
-    
-    /*
-    onQuickfix: function(event) {
-        var editor = editors.currentEditor.amlEditor.$editor;
-        var pos = editor.getCursorPosition();
-        var eventPos = event.data.pos;
-        var line = editor.getSession().getLine(pos.row);
-    
-        //editor.removeEventListener("change", this.$onChange);
-        //killCrashedCompletionInvoke.cancel();
-
-        if (pos.column !== eventPos.column || pos.row !== eventPos.row || event.data.line != line)
-            return;
-        if (event.data.isUpdate && !isPopupVisible())
-            return;
-
-
-        if (!isPopupVisible){
-            this.showQuickfixBox(pos.row, pos.column);
-        }
-        
-    }
-    */
-    
-    
-    
+ 
 };
 
 });

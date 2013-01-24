@@ -85,7 +85,7 @@ module.exports = {
                 type: anno.level || "warning",
                 text: anno.message,
                 pos: anno.pos,
-                hasResolution: anno.hasResolution
+                resolutions: anno.resolutions
                 // row will be filled in updateFloat()
             };
 

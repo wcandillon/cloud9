@@ -11,10 +11,6 @@ var ext = require("core/ext");
 var editors = require("ext/editors/editors");
 var language = require("ext/language/language");
 var markup = require("text!ext/xquery/xquery.xml");
-var WorkerClient = require("ace/worker/worker_client").WorkerClient;
-var UIWorkerClient = require("ace/worker/worker_client").UIWorkerClient;
-var useUIWorker = window.location && /[?&]noworker=1/.test(window.location.search);
-
 
 var quickfix = require("ext/xquery/quickfix");
 
@@ -34,21 +30,17 @@ module.exports = ext.register("ext/xquery/xquery", {
         
         ide.addEventListener("afteropenfile", function(event){
             ext.initExtension(_self);
-        });
-
-        var Worker = useUIWorker ? UIWorkerClient : WorkerClient;
-        var worker = _self.worker = new Worker(["treehugger", "ext", "ace", "c9"], "ext/xquery/worker", "XQueryWorker");
-        quickfix.setWorker(worker);
-        
+        });        
         
         // XQuery features
-        quickfix.hook(_self, worker);
+        quickfix.hook(_self);
            
     },
     
     init: function(amlNode) {
     },
-        enable : function() {
+    
+    enable : function() {
     },
 
     disable : function() {
