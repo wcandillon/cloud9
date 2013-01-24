@@ -24,13 +24,7 @@ var XQueryResolver = function(ast){
             }
         }
     
-        var dummyRes = new MarkerResolution(
-            "XQueryResolver found no handler function, type=" + type,
-            IMG_CHANGE, 
-            "dummy", 
-        function(){});
-        //return [dummyRes];
-        return [];
+       return [];
     };
     
     this.unusedVar = function(marker){
