@@ -15,6 +15,10 @@ if (configName.indexOf("-") === 0) {
    configName = "default";
 }
 
+process.addListener("uncaughtException", function (err) {
+      console.log("Uncaught exception: " + err);
+});
+
 var debug = false;
 var packed = false;
 var packedName = "";

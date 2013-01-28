@@ -14,43 +14,10 @@ define(function(require, exports, module) {
     var CodeFormatter = require('ext/xquery/lib/visitors/CodeFormatter').CodeFormatter;
     var Compiler = require('ext/xquery/lib/Compiler').Compiler;
     var Utils = require('ext/xquery/lib/utils').Utils;
+    var Refactoring = require('ext/xquery/refactoring').Refactoring;
     var handler = module.exports = Object.create(baseLanguageHandler);
 
     var builtin = null;
-    
-    var nsDecls = ["NamespaceDecl", "ModuleDecl", "SchemaPrefix", "ModuleImport"];
-    
-    function findPrefixDeclaration(prefix, node) {
-      if(node.name === "NCName" && node.value === prefix && node.getParent && node.getParent.getParent && nsDecls.indexOf(node.getParent.getParent.name) !== -1) {
-        return node.pos;      
-      }
-      for(var i in node.children) {
-        var child = node.children[i];
-        var pos = findPrefixDeclaration(prefix, child);
-        if(pos !== undefined) {
-          return pos;        
-        }
-      }
-    }
-    
-    function findPrefixReferences(prefix, node) {
-      var references = [];
-      if(["QName", "Wildcard"].indexOf(node.name) !== -1 && node.value.indexOf(":") !== -1 && node.value.substring(0, node.value.indexOf(":")) === prefix) {
-        var idx = node.value.indexOf(":");
-        var pos = node.pos;
-        references.push({ sl: pos.sl, sc: pos.sc, el: pos.el, ec: pos.sc + idx });  
-      } else if(node.name === "EQName" && node.value && node.value.substring(0, 2) !== "Q{" && node.value.indexOf(":") !== -1 && 
-        node.value.substring(0, node.value.indexOf(":")) === prefix) {
-        var idx = node.value.indexOf(":");
-        var pos = node.pos;
-        references.push({ sl: pos.sl, sc: pos.sc, el: pos.el, ec: pos.sc + idx });  
-      }
-      for(var i in node.children) {
-        var child = node.children[i];
-        references = references.concat(findPrefixReferences(prefix, child));
-      }
-      return references;
-    }
 
     handler.handlesLanguage = function(language) {
         return language === 'xquery';
@@ -81,7 +48,7 @@ define(function(require, exports, module) {
     handler.analyzeSync = function(doc, ast) {
         var markers = ast.markers;
         var error = ast.error;
-        //If syntax error, don't show warnings.
+        //If syntax error, don't show warnings?
         return markers;
     };
 
@@ -126,26 +93,23 @@ define(function(require, exports, module) {
     };
 
     handler.onCursorMovedNode = function(doc, fullAst, cursorPos, currentNode, callback) {
-        if (!currentNode) return callback();
-
+        if (!fullAst || !currentNode) { return callback(); }
         var markers = [];
         var enableRefactorings = [];
-        
-        if (["EQName", "QName"].indexOf(currentNode.name) !== -1
-          && currentNode.value.indexOf(":") !== -1
-          && (currentNode.pos.sc + currentNode.value.indexOf(":") >= cursorPos.column)
-        ) {
+        //Is it a QName prefix?
+        if (Refactoring.isNodePrefix(currentNode, cursorPos) || Refactoring.isNSDecl(currentNode, cursorPos)) {
             enableRefactorings.push("renameVariable");
-            var prefix = currentNode.value.indexOf(":");
-            var decl = findPrefixDeclaration(currentNode.value.substring(0, prefix), fullAst);
+            var value = Refactoring.isNSDecl(currentNode, cursorPos) ? currentNode.value : currentNode.value.substring(0, currentNode.value.indexOf(":"));
+            var decl = Refactoring.findPrefixDeclaration(value, fullAst);
+            var refs = Refactoring.findPrefixReferences(value, fullAst);
             if(decl !== undefined) {
               markers.push({
                 pos: decl,
                 type: "occurrence_main"
               });
             }
-            var refs = findPrefixReferences(currentNode.value.substring(0, prefix), fullAst);
-            for(var i in refs) {
+            
+            for(var i = 0; i < refs.length; i++) {
               var ref = refs[i];
               markers.push({
                 pos: ref,
@@ -153,133 +117,36 @@ define(function(require, exports, module) {
               });
             }
         }
-        else if (currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName" && currentNode.getParent.getParent && currentNode.getParent.getParent.name === "EQName" && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.getParent.name === "FunctionDecl") {
-
-            enableRefactorings.push("renameVariable");
-
-            markers.push({
-                pos: currentNode.pos,
-                type: "occurrence_main"
-            });
-            var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.getParent.arity];
-            for (var i in references) {
-                var pos = references[i];
-                markers.push({
-                    pos: pos,
-                    type: "occurrence_other"
-                });
-            }
-        }
-        else if (currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName" && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.name === "FunctionCall") {
-            enableRefactorings.push("renameVariable");
-            var decl = fullAst.sctx.declaredFunctions[currentNode.value][currentNode.getParent.getParent.arity];
-            markers.push({
-                pos: decl,
-                type: "occurrence_main"
-            });
-            var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.arity];
-            for (var i in references) {
-                var pos = references[i];
-                markers.push({
-                    pos: pos,
-                    type: "occurrence_other"
-                });
-            }
-
-        }
-        else if (currentNode.name === "QName" && currentNode.getParent && currentNode.getParent.name === "DirElemConstructor") {
-            enableRefactorings.push("renameVariable");
-            var dirElemConstructor = currentNode.getParent;
-            for (var i in dirElemConstructor.children) {
-                var child = dirElemConstructor.children[i];
-                if (child.name === "QName") {
-                    if (markers.length > 1) {
-                        markers.push({
-                            pos: child.pos,
-                            type: "occurrence_other"
-                        });
-                    }
-                    else {
-                        markers.push({
-                            pos: child.pos,
-                            type: "occurrence_main"
-                        });
-                    }
-                }
-            }
-        }
-        else if (currentNode.name === "NCName" && currentNode.getParent && currentNode.getParent.getParent && nsDecls.indexOf(currentNode.getParent.getParent.name) !== -1) {
-          enableRefactorings.push("renameVariable");
-          markers.push({
-            pos: currentNode.pos,
-            type: "occurrence_main"
-          });
-          var refs = findPrefixReferences(currentNode.value, fullAst);
-          for(var i in refs) {
-            var ref = refs[i];
-            markers.push({
-              pos: ref,
-              type: "occurrence_other"
-            });
-          }
-        }
-        else if (currentNode.name === "EQName") {
-            enableRefactorings.push("renameVariable");
-            var name = currentNode.value;
-            console.log(name);
-            var sctx = fullAst.sctx;
-            console.log(cursorPos);
-            var currentSctx = Utils.findNode(sctx, {
-                line: cursorPos.row,
-                col: cursorPos.column
-            });
-
-            var varRefs = currentSctx.getVarRefs(name);
-            for (var i in varRefs) {
-                var varRef = varRefs[i];
-                markers.push({
-                    pos: varRef.pos,
-                    type: "occurrence_other"
-                });
-            }
-
-            var varDecl = currentSctx.getVarDecl(name);
-            if (varDecl) {
-                markers.push({
-                    pos: varDecl.pos,
-                    type: "occurrence_main"
-                });
-            }
-        }
-
+        //Is it a Function name?
+        //Is it a Tag name?
+        //Is it a variable name?
         callback({
             markers: markers,
             enableRefactorings: enableRefactorings
         });
     };
-
-    handler.getVariablePositions = function(doc, fullAst, pos, currentNode, callback) {
-        if (!fullAst) return callback();
+    
+    handler.getVariablePositions = function(doc, fullAst, cursorPos, currentNode, callback) {
+        if (!fullAst || !currentNode) { return callback(); }
         
-        if (["EQName", "QName"].indexOf(currentNode.name) !== -1
-          && currentNode.value.indexOf(":") !== -1
-          && (currentNode.pos.sc + currentNode.value.indexOf(":") >= pos.column)
-        ) {
-            var prefix = currentNode.value.indexOf(":");
-            var decl = findPrefixDeclaration(currentNode.value.substring(0, prefix), fullAst);
-            var refs = findPrefixReferences(currentNode.value.substring(0, prefix), fullAst);
+        if (Refactoring.isNodePrefix(currentNode, cursorPos) || Refactoring.isNSDecl(currentNode, cursorPos)) {
+            var nsDecl = Refactoring.isNSDecl(currentNode, cursorPos);
+            var value =  nsDecl ? currentNode.value : currentNode.value.substring(0, currentNode.value.indexOf(":"));
+            var decl = nsDecl ? currentNode.pos : Refactoring.findPrefixDeclaration(value, fullAst);
+            var refs = Refactoring.findPrefixReferences(value, fullAst);
 
             var declarations = [];
             var uses = [];
             if(decl !== undefined) {
               declarations.push({ row: decl.sl, column: decl.sc });
             }
-            for(var i in refs) {
+            for(var i = 0; i < refs.length; i++) {
               var ref = refs[i];
               uses.push({ row: ref.sl, column: ref.sc });
             }
+            
             callback({
-                length: currentNode.value.indexOf(":"),
+                length: nsDecl ?  currentNode.pos.ec - currentNode.pos.sc : currentNode.value.indexOf(":"),
                 pos: {
                     row: currentNode.pos.sl,
                     column: currentNode.pos.sc
@@ -289,157 +156,10 @@ define(function(require, exports, module) {
                 uses: uses
             });
         }
-        else if (currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName" && currentNode.getParent.getParent && currentNode.getParent.getParent.name === "EQName" && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.getParent.name === "FunctionDecl") {
-
-            var declarations = [{
-                row: currentNode.pos.sl,
-                column: currentNode.pos.sc
-            }];
-            var uses = [];
-            var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.getParent.arity];
-            for (var i in references) {
-                var pos = references[i];
-                uses.push({
-                    row: pos.sl,
-                    column: pos.sc
-                });
-            }
-            callback({
-                length: currentNode.pos.ec - currentNode.pos.sc,
-                pos: {
-                    row: currentNode.pos.sl,
-                    column: currentNode.pos.sc
-                },
-                others: declarations.concat(uses),
-                declarations: declarations,
-                uses: uses
-            });
-
-        }
-        else if (currentNode.name === "EQName" && currentNode.getParent && currentNode.getParent.name === "FunctionName" && currentNode.getParent.getParent.getParent && currentNode.getParent.getParent.name === "FunctionCall") {
-            var decl = fullAst.sctx.declaredFunctions[currentNode.value][currentNode.getParent.getParent.arity];
-            var declarations = [{
-                row: decl.sl,
-                column: decl.sc
-            }];
-            var uses = [];
-            var references = fullAst.sctx.functionReferences[currentNode.value][currentNode.getParent.getParent.arity];
-            for (var i in references) {
-                var pos = references[i];
-                uses.push({
-                    row: pos.sl,
-                    column: pos.sc
-                });
-            }
-            callback({
-                length: currentNode.pos.ec - currentNode.pos.sc,
-                pos: {
-                    row: currentNode.pos.sl,
-                    column: currentNode.pos.sc
-                },
-                others: declarations.concat(uses),
-                declarations: declarations,
-                uses: uses
-            });
-
-        }
-        else if (currentNode.name === "QName" && currentNode.getParent && currentNode.getParent.name === "DirElemConstructor") {
-            var dirElemConstructor = currentNode.getParent;
-            var declarations = [];
-            var uses = [];
-            for (var i in dirElemConstructor.children) {
-                var child = dirElemConstructor.children[i];
-                if (child.name === "QName") {
-                    if (declarations.length > 0) {
-                        uses.push({
-                            row: child.pos.sl,
-                            column: child.pos.sc
-                        });
-                    }
-                    else {
-                        declarations.push({
-                            row: child.pos.sl,
-                            column: child.pos.sc
-                        });
-                    }
-                }
-            }
-
-            callback({
-                length: currentNode.pos.ec - currentNode.pos.sc,
-                pos: {
-                    row: currentNode.pos.sl,
-                    column: currentNode.pos.sc
-                },
-                others: declarations.concat(uses),
-                declarations: declarations,
-                uses: uses
-            });
-
-        }
-        else if (currentNode.name === "NCName" && currentNode.getParent && currentNode.getParent.getParent && nsDecls.indexOf(currentNode.getParent.getParent.name) !== -1) {
-          
-          var declarations = [{ row: currentNode.pos.sl, column: currentNode.pos.sc }];
-          var uses = [];
-    
-          var refs = findPrefixReferences(currentNode.value, fullAst);
-          for(var i in refs) {
-            var ref = refs[i];
-            uses.push({
-              row: ref.sl,
-              column: ref.sc
-            });
-          }
-          callback({
-                length: currentNode.pos.ec - currentNode.pos.sc,
-                pos: {
-                    row: currentNode.pos.sl,
-                    column: currentNode.pos.sc
-                },
-                others: declarations.concat(uses),
-                declarations: declarations,
-                uses: uses
-            });
-
-        }
-        else if (currentNode.name === "EQName") {
-            var name = currentNode.value;
-            var sctx = fullAst.sctx;
-            console.log(name);
-            var currentSctx = Utils.findNode(sctx, {
-                line: pos.row,
-                col: pos.column
-            });
-
-            var varRefs = currentSctx.getVarRefs(name);
-            var uses = [];
-
-            for (var i in varRefs) {
-                var varRef = varRefs[i];
-                uses.push({
-                    row: varRef.pos.sl,
-                    column: varRef.pos.sc
-                });
-            }
-
-            var varDecl = currentSctx.getVarDecl(name);
-            var declarations = [{
-                row: varDecl.pos.sl,
-                column: varDecl.pos.sc
-            }];
-
-            callback({
-                length: currentNode.pos.ec - currentNode.pos.sc,
-                pos: {
-                    row: currentNode.pos.sl,
-                    column: currentNode.pos.sc
-                },
-                others: declarations.concat(uses),
-                declarations: declarations,
-                uses: uses
-            });
-        }
-
+        //Is it a Function name?
+        //Is it a Tag name?
+        //Is it a variable name?
+      
     };
 
 });
