@@ -27,8 +27,37 @@ var MarkerResolutionGenerator = function(ast) {
     this.registerResolver = function(lang, resolver){
         this.resolvers.lang = resolver;
     };
+    
+    this.applyResolution = function(resolution){
+        var lang = resolution.lang;
+        var resolver = this.resolvers[lang];
+        if (!resolver){
+            throw "Missing resolver for markerresolution of language: " + lang;
+        }
+        return resolver.apply(resolution);
+    };
+    
+    this.previewResolution = function(resolution){
+        if (!resolution.preview){
+            // This resolution has no preview and none can be computed
+            return ""; 
+        }
+        
+        if (resolution.preview === ""){
+            // Compute the preview
+            var lang = resolution.lang;
+            var resolver = this.resolvers[lang];
+            if (!resolver){
+                throw "Missing resolver for markerresolution of language: " + lang;
+            }
+            resolver.preview(resolution);
+        }
+     
+        return resolution.preview;
+    };
         
 }; // MarkerResolutionGenerator
+
 
 
 exports.MarkerResolutionGenerator = MarkerResolutionGenerator;

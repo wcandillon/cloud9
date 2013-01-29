@@ -6,15 +6,16 @@ define(function(require, exports, module) {
 * data structure for resolutions, containing 
 * a label (short description, to be displayed in the list of resolutions), 
 * an image (to be displayed in the list of resolutions), 
-* a description (preview?), 
-* a run method (to apply the quickfix -> need editor reference to writeback)
+* a preview (undefined if none is available, "" if it must be computed
+* by the resolver first),
+* the arguments to be sent to the Resolver to apply the resolution
 */
-var MarkerResolution = function(label, image, description, appliedContent){
+var MarkerResolution = function(label, image, preview, args){
     return {
         label: label,
         image: image,
-        descr: description,
-        appliedContent: appliedContent
+        preview: preview,
+        args: args
     };
 };
 

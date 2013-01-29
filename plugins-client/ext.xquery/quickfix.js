@@ -76,12 +76,6 @@ module.exports = {
                 _self.initEditor(ace);           
         });
         
-        /*
-        worker.on("quickfix", function(event) {
-            if(ext.disabled) return;
-            _self.onQuickfix(event);
-        });
-        */
         
         commands.addCommand({
             name: "quickfix",

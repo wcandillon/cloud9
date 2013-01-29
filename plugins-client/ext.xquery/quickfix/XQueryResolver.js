@@ -4,6 +4,9 @@ define(function(require, exports, module) {
 
 var MarkerResolution = require('ext/xquery/quickfix/MarkerResolution').MarkerResolution;
 
+// Visitors
+var VariableRemover = require('ext/xquery/lib/visitors/VariableRemover').VariableRemover;
+
 var IMG_DELETE = '/ext/xquery/images/delete_obj.gif';
 var IMG_ADD = '/ext/xquery/images/add_obj.gif';
 var IMG_CHANGE = '/ext/xquery/images/correction_change.gif';
@@ -14,7 +17,20 @@ var IMG_CHANGE = '/ext/xquery/images/correction_change.gif';
  */
 var XQueryResolver = function(ast){
     
-    
+    function astToText(node){
+        if (node !== undefined){
+            var resText = "";
+            if (node.value !== undefined) {
+                resText += node.value;
+            }
+            for (var i = 0; i < node.children.length; i++){
+                resText += astToText(node.children[i]);
+            }
+            return resText;
+        }else{
+            return "";
+        }
+    }
     
     this.getResolutions = function(marker){
         var type = this.getType(marker);
@@ -30,10 +46,18 @@ var XQueryResolver = function(ast){
     this.unusedVar = function(marker){
         var label = "Remove variable";
         var image = IMG_DELETE;
-        var desc = "Preview of variable removal";
         
-        var appliedContent = "";
-        return [MarkerResolution(label,image,desc,appliedContent)];
+        var args = {
+            visitor: "VariableRemover",
+            removePos: marker.pos
+        };
+        
+        var remover = new VariableRemover(ast);
+        var removedAst = remover.removeVar(marker.pos);
+          
+        var appliedContent = astToText(removedAst);
+        var preview = appliedContent;
+        return [MarkerResolution(label,image,preview,args)];
     };
     
     
