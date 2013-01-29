@@ -47,17 +47,13 @@ var XQueryResolver = function(ast){
         var label = "Remove variable";
         var image = IMG_DELETE;
         
-        var args = {
-            visitor: "VariableRemover",
-            removePos: marker.pos
-        };
-        
         var remover = new VariableRemover(ast);
         var removedAst = remover.removeVar(marker.pos);
           
         var appliedContent = astToText(removedAst);
         var preview = appliedContent;
-        return [MarkerResolution(label,image,preview,args)];
+        
+        return [MarkerResolution(label,image,preview,appliedContent)];
     };
     
     

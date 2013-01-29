@@ -41,7 +41,7 @@ var isDocShown;
 var isDrawDocInvokeScheduled = false;
 
 var drawDocInvoke = lang.deferredCall(function() {
-    if (isPopupVisible() && quickfix.quickFixes[quickfix.selectedIdx].descr) {
+    if (isPopupVisible() && quickfix.quickFixes[quickfix.selectedIdx].preview) {
         isDocShown = true;
         txtQuickfixDoc.parentNode.show();
     }
@@ -342,7 +342,7 @@ module.exports = {
         this.docElement.innerHTML = '<span class="code_complete_doc_body">';
         var selected = this.quickFixes[this.selectedIdx];
 
-        if (selected && selected.descr) {
+        if (selected && selected.preview) {
             if (isDocShown) {
                 txtQuickfixDoc.parentNode.show();
             }
@@ -351,7 +351,7 @@ module.exports = {
                 if (!isDrawDocInvokeScheduled || delayPopup)
                     drawDocInvoke.schedule(SHOW_DOC_DELAY);
             }
-            this.docElement.innerHTML += selected.descr + '</span>';
+            this.docElement.innerHTML += selected.preview + '</span>';
         }
         else {
             txtQuickfixDoc.parentNode.hide();
