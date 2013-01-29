@@ -86,6 +86,10 @@ define(function(require, exports, module){
              currentNode.getParent.name === "FunctionCall";
     },
     
+    isTagName: function(currentNode) {
+      return currentNode.name === "QName" && currentNode.getParent && currentNode.getParent.name === "DirElemConstructor";    
+    },
+    
     getFunctionDeclarationsAndReferences: function(ast, name, arity) {
       var hasDecl = ast.sctx.declaredFunctions[name] && ast.sctx.declaredFunctions[name][arity];
       var hasReferences = ast.sctx.functionReferences[name] && ast.sctx.functionReferences[name][arity];
@@ -95,6 +99,22 @@ define(function(require, exports, module){
         declaration: declaration,
         references: references
       };
+    },
+    
+    getTags: function(dirElemConstructor) {
+        var result = {};
+        for (var i = 0; i < dirElemConstructor.children.length; i++) {
+            var child = dirElemConstructor.children[i];
+            if (child.name === "QName") {
+                if (result.open !== undefined) {
+                    result.close = child.pos;
+                }
+                else {
+                    result.open = child.pos;
+                }
+            }
+        }
+        return result;
     }
   };
 });

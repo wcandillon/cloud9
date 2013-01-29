@@ -139,6 +139,22 @@ define(function(require, exports, module) {
            }            
         }
         //Is it a Tag name?
+        else if(Refactoring.isTagName(currentNode)) {
+          enableRefactorings.push("renameVariable");
+          var tags = Refactoring.getTags(currentNode.getParent);
+          if(tags.close) {
+            markers.push({
+              pos: tags.close,
+              type: "occurrence_other"
+            });
+          }
+          if(tags.open) {
+            markers.push({
+              pos: tags.open,
+              type: "occurrence_main"
+            });
+          }
+        }
         //Is it a variable name?
         callback({
             markers: markers,
@@ -209,6 +225,34 @@ define(function(require, exports, module) {
           });
         }
         //Is it a Tag name?
+        else if(Refactoring.isTagName(currentNode)) {
+          var tags = Refactoring.getTags(currentNode.getParent);
+          var declarations = [];
+          var uses = [];
+          if(tags.open !== undefined) {
+            declarations.push({
+              row: tags.open.sl,
+               column: tags.open.sc
+            });
+          }
+          if(tags.close !== undefined) {
+            uses.push({
+              row: tags.close.sl,
+              column: tags.close.sc
+            });
+              
+          }
+          callback({
+            length: currentNode.pos.ec - currentNode.pos.sc,
+            pos: {
+                row: currentNode.pos.sl,
+                column: currentNode.pos.sc
+            },
+            others: declarations.concat(uses),
+            declarations: declarations,
+            uses: uses
+          });
+        }
         //Is it a variable name?
       
     };
