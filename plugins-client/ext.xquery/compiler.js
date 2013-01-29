@@ -94,6 +94,7 @@ define(function(require, exports, module) {
 
     handler.onCursorMovedNode = function(doc, fullAst, cursorPos, currentNode, callback) {
         if (!fullAst || !currentNode) { return callback(); }
+
         var markers = [];
         var enableRefactorings = [];
         //Is it a QName prefix?
@@ -118,6 +119,25 @@ define(function(require, exports, module) {
             }
         }
         //Is it a Function name?
+        else if(Refactoring.isFunctionDecl(currentNode) || Refactoring.isFunctionCall(currentNode)) {
+            enableRefactorings.push("renameVariable");
+            var declAndRefs = Refactoring.getFunctionDeclarationsAndReferences(fullAst, currentNode.value, currentNode.getParent.arity);
+            var declaration = declAndRefs.declaration;
+            var references  = declAndRefs.references;
+            if(declaration !== null) {
+              markers.push({
+                pos: declaration,
+                type: "occurrence_main"
+              });
+            }
+           for (var i=0; i < references.length; i++) {
+              var pos = references[i];
+              markers.push({
+                  pos: pos,
+                  type: "occurrence_other"
+              });
+           }            
+        }
         //Is it a Tag name?
         //Is it a variable name?
         callback({
@@ -140,6 +160,7 @@ define(function(require, exports, module) {
             if(decl !== undefined) {
               declarations.push({ row: decl.sl, column: decl.sc });
             }
+            
             for(var i = 0; i < refs.length; i++) {
               var ref = refs[i];
               uses.push({ row: ref.sl, column: ref.sc });
@@ -157,6 +178,36 @@ define(function(require, exports, module) {
             });
         }
         //Is it a Function name?
+        else if(Refactoring.isFunctionDecl(currentNode) || Refactoring.isFunctionCall(currentNode)) {
+          var declAndRefs = Refactoring.getFunctionDeclarationsAndReferences(fullAst, currentNode.value, currentNode.getParent.arity);
+          var declaration = declAndRefs.declaration;
+          var references  = declAndRefs.references;
+          var declarations = [];
+          if(declaration !== null) {
+             declarations.push({
+              row: declaration.sl,
+              column: declaration.sc
+            });
+          }
+          var uses = [];
+          for (var i = 0; i < references.length; i++) {
+            var pos = references[i];
+            uses.push({
+              row: pos.sl,
+              column: pos.sc
+            });
+          }
+          callback({
+            length: currentNode.pos.ec - currentNode.pos.sc,
+            pos: {
+                row: currentNode.pos.sl,
+                column: currentNode.pos.sc
+            },
+            others: declarations.concat(uses),
+            declarations: declarations,
+            uses: uses
+          });
+        }
         //Is it a Tag name?
         //Is it a variable name?
       
