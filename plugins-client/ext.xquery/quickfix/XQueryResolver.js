@@ -51,8 +51,8 @@ var XQueryResolver = function(ast){
         var removedAst = remover.removeVar(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        var preview = JSON.stringify(marker.pos) + "\n" + appliedContent;
-        
+        //var preview = JSON.stringify(marker.pos) + "\n" + appliedContent;
+        var preview = appliedContent;
         return [MarkerResolution(label,image,preview,appliedContent)];
     };
     

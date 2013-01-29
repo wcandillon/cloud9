@@ -229,16 +229,18 @@ module.exports = {
         });
         
         this.popupTime = new Date().getTime();
-        document.addEventListener("click", this.closeQuickfixBox, false);
-        ace.container.addEventListener("DOMMouseScroll", this.closeQuickfixBox, false);
-        ace.container.addEventListener("mousewheel", this.closeQuickfixBox, false);
+        document.addEventListener("click", quickfix.closeQuickfixBox, false);
+        ace.container.addEventListener("DOMMouseScroll", quickfix.closeQuickfixBox, false);
+        ace.container.addEventListener("mousewheel", quickfix.closeQuickfixBox, false);
     },
 
     closeQuickfixBox : function(event) {
         var qfBoxTime = new Date().getTime() - quickfix.popupTime;
-        if (qfBoxTime < QFBOX_MINTIME){
+        if (!quickfix.forceClose && qfBoxTime < QFBOX_MINTIME){
             return;
         }
+        
+        quickfix.forceClose = false;
     
         barQuickfixCont.$ext.style.display = "none";
         if (!editors.currentEditor.amlEditor) // no editor, try again later
@@ -246,9 +248,9 @@ module.exports = {
         var ace = editors.currentEditor.amlEditor.$editor;
         
         // TODO these calls don't work.
-        document.removeEventListener("click", this.closeQuickfixBox, false);
-        ace.container.removeEventListener("DOMMouseScroll", this.closeQuickfixBox, false);
-        ace.container.removeEventListener("mousewheel", this.closeQuickfixBox, false);
+        document.removeEventListener("click", quickfix.closeQuickfixBox, false);
+        ace.container.removeEventListener("DOMMouseScroll", quickfix.closeQuickfixBox, false);
+        ace.container.removeEventListener("mousewheel", quickfix.closeQuickfixBox, false);
         
         
         if(oldCommandKey) {
@@ -324,6 +326,7 @@ module.exports = {
             
             
             annoEl.addEventListener("click", function() {
+                quickfix.forceClose = true;
                 _self.applyQuickfix(qfix);
             });
             
@@ -411,6 +414,7 @@ module.exports = {
             case 13: // Enter
             case 9: // Tab
                 this.applyQuickfix(this.quickFixes[this.selectedIdx]);
+                quickfix.forceClose = true;
                 this.closeQuickfixBox();
                 e.preventDefault();
                 break;
