@@ -30,7 +30,14 @@
  
 define(function(require, exports, module){
   exports.Refactoring = {
-        
+    
+    equalPositions: function(node1, node2) {
+      return node1.pos.sl === node2.pos.sl &&
+             node1.pos.sc === node2.pos.sc &&
+             node1.pos.el === node2.pos.el &&
+             node1.pos.ec === node2.pos.ec;
+    },
+    
     nsDecls: ["NamespaceDecl", "ModuleDecl", "SchemaPrefix", "ModuleImport"],
     
     findPrefixDeclaration: function (prefix, node) {
@@ -88,6 +95,21 @@ define(function(require, exports, module){
     
     isTagName: function(currentNode) {
       return currentNode.name === "QName" && currentNode.getParent && currentNode.getParent.name === "DirElemConstructor";    
+    },
+    
+    isVariable: function(currentNode) {
+      var parent = currentNode.getParent;
+      if(!parent) return false;
+      if(parent.name === "VarName") return true;
+      for(var i = 0; i < parent.children.length - 1; i++) {
+        var child = parent.children[i];
+        var nextChild = parent.children[i + 1];
+        if(child.value === "$" && nextChild.name === "EQName" &&
+           this.equalPositions(nextChild, currentNode)) {
+          return true;
+        }
+      }
+      return false;
     },
     
     getFunctionDeclarationsAndReferences: function(ast, name, arity) {

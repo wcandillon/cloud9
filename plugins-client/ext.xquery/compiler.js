@@ -156,6 +156,32 @@ define(function(require, exports, module) {
           }
         }
         //Is it a variable name?
+        else if(Refactoring.isVariable(currentNode)) {
+          enableRefactorings.push("renameVariable");
+          var name = currentNode.value;
+          var sctx = fullAst.sctx;
+          var currentSctx = Utils.findNode(sctx, {
+            line: cursorPos.row,
+            col: cursorPos.column
+          });
+
+          var varRefs = currentSctx.getVarRefs(name) || [];
+          for (var i=0; i < varRefs.length; i++) {
+            var varRef = varRefs[i];
+            markers.push({
+                pos: varRef.pos,
+                type: "occurrence_other"
+            });
+          }
+          
+          var varDecl = currentSctx.getVarDecl(name);
+          if (varDecl) {
+            markers.push({
+                pos: varDecl.pos,
+                type: "occurrence_main"
+            });
+          }
+        }
         callback({
             markers: markers,
             enableRefactorings: enableRefactorings
@@ -254,7 +280,45 @@ define(function(require, exports, module) {
           });
         }
         //Is it a variable name?
-      
+        else if(Refactoring.isVariable(currentNode)) {
+          var name = currentNode.value;
+          var sctx = fullAst.sctx;
+          var currentSctx = Utils.findNode(sctx, {
+            line: cursorPos.row,
+            col: cursorPos.column
+          });
+
+          var varRefs = currentSctx.getVarRefs(name) || [];
+          var uses = [];
+
+          for (var i=0; i < varRefs.length; i++) {
+            var varRef = varRefs[i];
+            uses.push({
+                row: varRef.pos.sl,
+                column: varRef.pos.sc
+            });
+          }
+
+          var varDecl = currentSctx.getVarDecl(name);
+          var declarations = [];
+          if(varDecl) {
+            declarations.push({
+              row: varDecl.pos.sl,
+              column: varDecl.pos.sc
+            });
+          }
+
+          callback({
+            length: currentNode.pos.ec - currentNode.pos.sc,
+            pos: {
+                row: currentNode.pos.sl,
+                column: currentNode.pos.sc
+            },
+            others: declarations.concat(uses),
+            declarations: declarations,
+            uses: uses
+          });
+        }
     };
 
 });
