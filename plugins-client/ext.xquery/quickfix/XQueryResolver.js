@@ -6,6 +6,7 @@ var MarkerResolution = require('ext/xquery/quickfix/MarkerResolution').MarkerRes
 
 // Visitors
 var VariableRemover = require('ext/xquery/lib/visitors/VariableRemover').VariableRemover;
+var NamespaceRemover = require('ext/xquery/lib/visitors/NamespaceRemover').NamespaceRemover;
 
 var IMG_DELETE = '/ext/xquery/images/delete_obj.gif';
 var IMG_ADD = '/ext/xquery/images/add_obj.gif';
@@ -44,27 +45,61 @@ var XQueryResolver = function(ast){
     };
     
     this.unusedVar = function(marker){
-        var label = "Remove variable";
+        var label = "Remove unused variable";
         var image = IMG_DELETE;
         
         var remover = new VariableRemover(ast);
         var removedAst = remover.removeVar(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        //var preview = JSON.stringify(marker.pos) + "\n" + appliedContent;
+        var preview = appliedContent;
+        return [MarkerResolution(label,image,preview,appliedContent)];
+    };
+    
+    this.unusedNamespace = function(marker){
+        var label = "Remove unused namespace prefix";
+        var image = IMG_DELETE;
+        
+        var remover = new NamespaceRemover(ast);
+        var removedAst = remover.removeNs(marker.pos);
+          
+        var appliedContent = astToText(removedAst);
+        var preview = appliedContent;
+        return [MarkerResolution(label,image,preview,appliedContent)];
+    };
+    
+    this.duplicateNamespace = function(marker){
+        var label = "Remove duplicate namespace prefix";
+        var image = IMG_DELETE;
+        
+        var remover = new NamespaceRemover(ast);
+        var removedAst = remover.removeNs(marker.pos);
+          
+        var appliedContent = astToText(removedAst);
         var preview = appliedContent;
         return [MarkerResolution(label,image,preview,appliedContent)];
     };
     
     
-    
-    
+    function endsWith(str, end){
+        if (str.length < end.length)
+            return false;
+        return str.substring(str.length - end.length) === end;
+    }
     
     this.getType = function(marker){
         var msg = marker.message;
-        if (msg[0] === '$' && msg.indexOf('unused variable.') === 
-            msg.length - 'unused variable.'.length){
+        if (msg[0] === '$' && endsWith(msg, ': unused variable.')){
             return "unusedVar";
+        }
+        
+        if (msg[0] === '"'){
+            if (endsWith(msg, ': unused namespace prefix.')){
+                return "unusedNamespace";
+            } else if (endsWith(msg, '".')
+            && msg.indexOf('": is already available with the prefix "') != -1){
+                 return "duplicateNamespace";
+            }
         }
         
         var errCode = marker.message.substring(1, 9);
