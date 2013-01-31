@@ -10,7 +10,12 @@ var completeUtil = require("ext/codecomplete/complete_util");
 var Utils = require('ext/xquery/lib/utils').Utils;
 
 var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
-var qnameRegex = /\$?[a-zA-Z_0-9:\-#]*/;
+
+var char = "-._A-Za-z0-9\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
+var nameChar = "[" + char + "]";
+var varChar = "[\\$" + char + "]";
+var nameCharRegExp = new RegExp(nameChar);
+var varCharRegExp = new RegExp(varChar);
 
 function completeURI(line, pos, builtin) {
     var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
@@ -37,12 +42,13 @@ function completeVariable(identifier, pos, builtin, ast) {
   var matches = completeUtil.findCompletions(identifier, names);
   return matches.map(function(name) {
       return {
+          doc: "<p>Hello World</p>",
           icon: "property",
           isFunction: false,
-          name: identifier,
+          name: "$" + name,
           priority: 4,
-          replaceText: "$" + identifier,
-          identifierRegex: qnameRegex
+          replaceText: "$" + name,
+          identifierRegex: varCharRegExp
       };
     });
 };
@@ -72,7 +78,7 @@ function completeNSFunctions(pfx, local, pos, builtin, ast) {
           name: name + args,
           priority: 4,
           replaceText: name + args,
-          identifierRegex: uriRegex
+          identifierRegex: new RegExp(nameChar)
       };
     });
 }
@@ -80,8 +86,6 @@ function completeNSFunctions(pfx, local, pos, builtin, ast) {
 function completeDefaultFunctions(identifier, pos, builtin, ast) {
     var sctx = ast.sctx;
     var ns = sctx.defaultFnNs;
-    console.log(ns);
-    console.log(builtin);
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin[ns].functions));
     return matches.map(function(name) {
       //TODO support multiple arities
@@ -95,7 +99,7 @@ function completeDefaultFunctions(identifier, pos, builtin, ast) {
           name: name + args,
           priority: 4,
           replaceText:  name + args,
-          identifierRegex: uriRegex
+          identifierRegex: qnameRegex
       };
     });
 }
@@ -117,9 +121,10 @@ function completeFunction(identifier, pos, builtin, sctx) {
 
 function completeExpr(line, pos, builtin, sctx) {
   var markers = [];
-  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, qnameRegex);
-  var isVar = identifier.substring(0, 1) === "$";
-  //console.log(identifier);
+  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
+  var before = line.substring(0, line.length - identifier.length);
+  var isVar = before[before.length - 1] === "$";
+  //console.log("ID " + identifier);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {

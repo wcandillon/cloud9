@@ -60,11 +60,12 @@ define(function(require, exports, module) {
     };
 
     handler.complete = function(doc, fullAst, pos, currentNode, callback) {
-        if (builtin === null) {
-            var text = completeUtil.fetchText(this.staticPrefix, 'ext/xquery/lib/builtin.json');
-            builtin = JSON.parse(text);
-        }
 
+        if(builtin === null) {
+          var text = completeUtil.fetchText(this.staticPrefix, 'ext/xquery/lib/builtin.json');
+          builtin = JSON.parse(text);  
+        }
+        
         var line = doc.getLine(pos.row);
         
         if (currentNode !== undefined && currentNode.name === "URILiteral") {
@@ -182,6 +183,7 @@ define(function(require, exports, module) {
             });
           }
         }
+        console.log(markers);
         callback({
             markers: markers,
             enableRefactorings: enableRefactorings
