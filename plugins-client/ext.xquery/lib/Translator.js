@@ -301,7 +301,8 @@ define(function(require, exports, module){
     var fnParams = [];
     var isExternal = false;
     this.FunctionDecl = function(node) {
-      isExternal = node.children[node.children.length - 1].value === "external";
+      isExternal = node.children[node.children.length - 1].value &&
+                   node.children[node.children.length - 1].value === "external";
       fnParams = [];
       var eQName = "";
       var name = "";
@@ -531,13 +532,31 @@ define(function(require, exports, module){
       return true;
     };
     
+    var isDecl = false;
     this.GroupingSpec = function(node) {
+      isDecl = false;
       pushSctx(node.pos);
       clauseCount[clauseCount.length - 1]++;
-      this.visitChildren(node, new VarDeclHandler(node));
+
+      for(var i = 0; i < node.children.length; i++) {
+        var child = node.children[i];
+        if(child.value === ":=") {
+          isDecl = true;
+        }
+      }
+      
       return false;
-    }
+    };
     
+    this.GroupingVariable = function(node) {
+      if(isDecl) {
+        this.visitChildren(node, new VarDeclHandler(node));
+      } else {
+        this.VarRef(node);
+      }
+      return false;
+    };
+
     var name = "";
     var displayPos = null;
     this.VarDecl = function(node) {

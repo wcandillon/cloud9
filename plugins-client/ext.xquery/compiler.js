@@ -66,14 +66,14 @@ define(function(require, exports, module) {
         }
 
         var line = doc.getLine(pos.row);
-
-        //TODO: propose URI completion non ast based
+        
         if (currentNode !== undefined && currentNode.name === "URILiteral") {
             callback(xqCompletion.completeURI(line, pos, builtin));
         }
         else {
             callback(xqCompletion.completeExpr(line, pos, builtin, fullAst));
         }
+        
     };
 
     /**

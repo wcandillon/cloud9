@@ -11,5 +11,5 @@
     "for sliding window": "for sliding window $w in ^^\nstart at $s when true\nonly end at $e when true\nreturn $w",
     "for": "for $item in ^^\nreturn $item",
     "where": "where ^^",
-    "group by": "group by ^^"
+    "group by": "group by $^^"
 }
