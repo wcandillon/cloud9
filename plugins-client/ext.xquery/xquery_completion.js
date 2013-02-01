@@ -10,7 +10,30 @@ var completeUtil = require("ext/codecomplete/complete_util");
 var Utils = require('ext/xquery/lib/utils').Utils;
 
 var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
-var qnameRegex = /\$?[a-zA-Z_0-9:\-#]*/;
+
+var char = "-._A-Za-z0-9:\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
+var nameChar = "[" + char + "]";
+var varChar = "[\\$" + char + "]";
+var nameCharRegExp = new RegExp(nameChar);
+var varCharRegExp = new RegExp(varChar);
+
+var varDeclLabels = {
+  "LetBinding": "Let binding",
+  "Param": "Function parameter",
+  "QuantifiedExpr": "Quantified expression binding",
+  "VarDeclStatement": "Local variable",
+  "ForBinding": "For binding",
+  "TumblingWindowClause": "Tumbling window binding",
+  "WindowVars": "Window variable",
+  "SlidingWindowClause": "Sliding window binding",
+  "PositionalVar": "Positional variable",
+  "CurrentItem": "Current item",
+  "PreviousItem": "Previous item",
+  "NextItem": "Next item",
+  "CountClause": "Count binding",
+  "GroupingVariable": "Grouping variable",
+  "VarDecl": "Module variable"
+};
 
 function completeURI(line, pos, builtin) {
     var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
@@ -30,34 +53,51 @@ function completeURI(line, pos, builtin) {
     });
 };
 
-function completeVariable(identifier, pos, builtin, ast) {
-  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column});
-  var decls = sctx.getVarDecls();
-  var names = Object.keys(decls);
-  var matches = completeUtil.findCompletions(identifier, names);
-  return matches.map(function(name) {
+function completePath(line, pos, paths) {
+    var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
+    var matches = completeUtil.findCompletions(identifier, paths);
+    return matches.map(function(uri) {
       return {
           icon: "property",
           isFunction: false,
-          name: identifier,
+          name: uri,
           priority: 4,
-          replaceText: "$" + identifier,
-          identifierRegex: qnameRegex
+          replaceText: uri,
+          identifierRegex: uriRegex
       };
     });
 };
 
-function completeNSFunctions(pfx, local, pos, builtin, sctx) {
+function completeVariable(identifier, pos, builtin, ast) {
+  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
+  var decls = sctx.getVarDecls();
+  //console.log(decls);
+  var names = Object.keys(decls);
+  var matches = completeUtil.findCompletions(identifier, names);
+  return matches.map(function(name) {
+      return {
+          doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
+          icon: "property",
+          isFunction: false,
+          name: "$" + name,
+          priority: 4,
+          replaceText: "$" + name,
+          identifierRegex: varCharRegExp
+      };
+    });
+};
+
+function completeNSFunctions(pfx, local, pos, builtin, ast) {
+    var sctx = ast.sctx;
     var ns = sctx.namespaces[pfx];
     //console.log(ns);
     var names = Object.keys(builtin[ns].functions);
     for(var i in names) {
         names[i] = pfx + ":" + names[i];
     }
-    
-    var matches = completeUtil.findCompletions(pfx+local, names);
+    var matches = completeUtil.findCompletions(pfx+":"+local, names);
     return matches.map(function(name) {
-      //console.log(name);
+      //console.log("Name:" + name);
       //TODO support multiple arities
       var local = name.substring(name.indexOf(":") + 1);
       //console.log(local);
@@ -71,16 +111,33 @@ function completeNSFunctions(pfx, local, pos, builtin, sctx) {
           name: name + args,
           priority: 4,
           replaceText: name + args,
-          identifierRegex: uriRegex
+          identifierRegex: nameCharRegExp
       };
     });
 }
 
-function completeDefaultFunctions(identifier, pos, builtin, sctx) {
+function completeDefaultFunctions(identifier, pos, builtin, ast) {
+    var namespaces = Object.keys(ast.sctx.declaredNS);
+    var matches = completeUtil.findCompletions(identifier, namespaces);
+    var results = matches.map(function(name) {
+    var ns = ast.sctx.declaredNS[name].ns;
+      return {
+          doc: builtin[ns].doc,
+          docUrl: "http://www.zorba-xquery.com/html/view-module?ns=" + encodeURIComponent(ns),
+          icon: "method",
+          isFunction: false,
+          name: name + ":" + " (" + ns + ")",
+          priority: 5,
+          replaceText:  name + ":",
+          identifierRegex: nameCharRegExp
+      };
+    });
+    
+    var sctx = ast.sctx;
     var ns = sctx.defaultFnNs;
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin[ns].functions));
-    return matches.map(function(name) {
-      //TODO support multiple arities
+    results = results.concat(matches.map(function(name) {
+      //TODO: support multiple arities
       var fn = builtin[ns].functions[name][0];
       var args = "(" +  fn.params.join(", ") + ")";
       return {
@@ -91,9 +148,11 @@ function completeDefaultFunctions(identifier, pos, builtin, sctx) {
           name: name + args,
           priority: 4,
           replaceText:  name + args,
-          identifierRegex: uriRegex
+          identifierRegex: nameCharRegExp
       };
-    });
+    }));
+    
+    return results;
 }
 
 function completeFunction(identifier, pos, builtin, sctx) {
@@ -113,9 +172,10 @@ function completeFunction(identifier, pos, builtin, sctx) {
 
 function completeExpr(line, pos, builtin, sctx) {
   var markers = [];
-  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, qnameRegex);
-  var isVar = identifier.substring(0, 1) === "$";
-  //console.log(identifier);
+  var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
+  var before = line.substring(0, line.length - identifier.length);
+  var isVar = before[before.length - 1] === "$";
+  //console.log("ID " + identifier);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
@@ -125,6 +185,7 @@ function completeExpr(line, pos, builtin, sctx) {
 };
 
 module.exports.completeURI = completeURI;
+module.exports.completePath = completePath;
 module.exports.completeExpr = completeExpr;
 module.exports.completeVariable = completeVariable;
 module.exports.completeFunction = completeFunction;
