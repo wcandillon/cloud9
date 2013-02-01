@@ -53,6 +53,21 @@ function completeURI(line, pos, builtin) {
     });
 };
 
+function completePath(line, pos, paths) {
+    var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
+    var matches = completeUtil.findCompletions(identifier, paths);
+    return matches.map(function(uri) {
+      return {
+          icon: "property",
+          isFunction: false,
+          name: uri,
+          priority: 4,
+          replaceText: uri,
+          identifierRegex: uriRegex
+      };
+    });
+};
+
 function completeVariable(identifier, pos, builtin, ast) {
   var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
   var decls = sctx.getVarDecls();
@@ -171,6 +186,7 @@ function completeExpr(line, pos, builtin, sctx) {
 };
 
 module.exports.completeURI = completeURI;
+module.exports.completePath = completePath;
 module.exports.completeExpr = completeExpr;
 module.exports.completeVariable = completeVariable;
 module.exports.completeFunction = completeFunction;

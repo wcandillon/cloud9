@@ -18,6 +18,14 @@ define(function(require, exports, module) {
     var handler = module.exports = Object.create(baseLanguageHandler);
 
     var builtin = null;
+    var paths = [];
+    
+    handler.init = function(callback) {
+      handler.sender.on("updateFileCache", function(event) {
+        paths = event.data.split("\n");
+      });
+      callback();  
+    };
 
     handler.handlesLanguage = function(language) {
         return language === 'xquery';
@@ -69,7 +77,21 @@ define(function(require, exports, module) {
         var line = doc.getLine(pos.row);
         
         if (currentNode !== undefined && currentNode.name === "URILiteral") {
-            callback(xqCompletion.completeURI(line, pos, builtin));
+            var p = currentNode.getParent;
+            var idx = 0;
+            for(var i=0; i < p.children.length; i++) {
+              var child = p.children[i];
+              if(child.pos.sl === currentNode.pos.sl && child.pos.sc === currentNode.pos.sc &&
+                 child.pos.el === currentNode.pos.el && child.pos.ec === currentNode.pos.ec) {
+                if(idx > 0) {
+                  callback(xqCompletion.completePath(line, pos, paths));
+                } else {
+                  callback(xqCompletion.completeURI(line, pos, builtin));
+                }
+              } else if(child.name === "URILiteral") {
+                idx++;
+              }
+            }
         }
         else {
             callback(xqCompletion.completeExpr(line, pos, builtin, fullAst));
