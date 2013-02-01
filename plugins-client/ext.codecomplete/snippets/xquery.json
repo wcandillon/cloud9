@@ -7,6 +7,7 @@
     "import schema default element namespace": "import schema default element namespace \"^^\";",
     "declare namespace": "declare namespace ns = \"^^\";",
     "declare function": "declare function ^^(){\n ()\n};",
+    "declare default function namespace": "declare default function namespace \"^^\";",
     "for tumbling window": "for tumbling window $w in ^^\nstart at $s when true\nonly end at $e when true\nreturn $w",
     "for sliding window": "for sliding window $w in ^^\nstart at $s when true\nonly end at $e when true\nreturn $w",
     "for": "for $item in ^^\nreturn $item",

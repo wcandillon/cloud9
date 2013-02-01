@@ -11,7 +11,7 @@ var Utils = require('ext/xquery/lib/utils').Utils;
 
 var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
 
-var char = "-._A-Za-z0-9\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
+var char = "-._A-Za-z0-9:\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
 var nameChar = "[" + char + "]";
 var varChar = "[\\$" + char + "]";
 var nameCharRegExp = new RegExp(nameChar);
@@ -103,11 +103,27 @@ function completeNSFunctions(pfx, local, pos, builtin, ast) {
 }
 
 function completeDefaultFunctions(identifier, pos, builtin, ast) {
+    var namespaces = Object.keys(ast.sctx.declaredNS);
+    var matches = completeUtil.findCompletions(identifier, namespaces);
+    var results = matches.map(function(name) {
+      var ns = ast.sctx.declaredNS[name].ns;
+      return {
+          doc: builtin[ns].doc,
+          docUrl: "http://www.zorba-xquery.com/html/view-module?ns=" + encodeURIComponent(ns),
+          icon: "method",
+          isFunction: false,
+          name: name + ":" + " (" + ns + ")",
+          priority: 5,
+          replaceText:  name + ":",
+          identifierRegex: nameCharRegExp
+      };
+    });
+    
     var sctx = ast.sctx;
     var ns = sctx.defaultFnNs;
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin[ns].functions));
-    return matches.map(function(name) {
-      //TODO support multiple arities
+    results = results.concat(matches.map(function(name) {
+      //TODO: support multiple arities
       var fn = builtin[ns].functions[name][0];
       var args = "(" +  fn.params.join(", ") + ")";
       return {
@@ -118,9 +134,11 @@ function completeDefaultFunctions(identifier, pos, builtin, ast) {
           name: name + args,
           priority: 4,
           replaceText:  name + args,
-          identifierRegex: qnameRegex
+          identifierRegex: nameCharRegExp
       };
-    });
+    }));
+    
+    return results;
 }
 
 function completeFunction(identifier, pos, builtin, sctx) {
@@ -143,7 +161,7 @@ function completeExpr(line, pos, builtin, sctx) {
   var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
   var before = line.substring(0, line.length - identifier.length);
   var isVar = before[before.length - 1] === "$";
-  //console.log("ID " + identifier);
+  console.log("ID " + identifier);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
