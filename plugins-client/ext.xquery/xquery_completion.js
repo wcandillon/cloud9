@@ -17,6 +17,24 @@ var varChar = "[\\$" + char + "]";
 var nameCharRegExp = new RegExp(nameChar);
 var varCharRegExp = new RegExp(varChar);
 
+var varDeclLabels = {
+  "LetBinding": "Let binding",
+  "Param": "Function parameter",
+  "QuantifiedExpr": "Quantified expression binding",
+  "VarDeclStatement": "Local variable",
+  "ForBinding": "For binding",
+  "TumblingWindowClause": "Tumbling window binding",
+  "WindowVars": "Window variable",
+  "SlidingWindowClause": "Sliding window binding",
+  "PositionalVar": "Positional variable",
+  "CurrentItem": "Current item",
+  "PreviousItem": "Previous item",
+  "NextItem": "Next item",
+  "CountClause": "Count binding",
+  "GroupingVariable": "Grouping variable",
+  "VarDecl": "Module variable"
+};
+
 function completeURI(line, pos, builtin) {
     var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
     var matches = completeUtil.findCompletions(identifier, Object.keys(builtin));
@@ -36,13 +54,14 @@ function completeURI(line, pos, builtin) {
 };
 
 function completeVariable(identifier, pos, builtin, ast) {
-  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column});
+  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
   var decls = sctx.getVarDecls();
+  console.log(decls);
   var names = Object.keys(decls);
   var matches = completeUtil.findCompletions(identifier, names);
   return matches.map(function(name) {
       return {
-          doc: "<p>Hello World</p>",
+          doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
           icon: "property",
           isFunction: false,
           name: "$" + name,
