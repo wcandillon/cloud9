@@ -208,11 +208,6 @@ var XQueryResolver = function(ast){
             }
         });
         
-        
-        // Resolution family 3: Add import / namespacedecl
-        var addResolution = this.resAddNamespaceDecl(prefix,"");
-        
-        
         renames.sort(
             function(a,b){
                 var compareA = a.fromName || a.toName;
@@ -220,7 +215,6 @@ var XQueryResolver = function(ast){
                 return lDistance(compareA,prefix) - lDistance(compareB,prefix);
             }
         );
-        
         
         var renameResolutions = [];
         for (var i = 0; i < NUM_NSRENAME_SUGGESTIONS && i < renames.length; i++){
@@ -230,7 +224,10 @@ var XQueryResolver = function(ast){
             renameResolutions.push(resolution);
         }
         
-
+                
+        // Resolution family 3: Add import / namespacedecl
+        var addResolution = this.resAddNamespaceDecl(prefix,"");
+        
         var ret = [];
         
         ret.push(addResolution);
@@ -287,8 +284,8 @@ var XQueryResolver = function(ast){
         }
         
         var appliedContent = astToText(newAst);
-        var preview = appliedContent;
-        var ret = markerResolution(label,image,preview,appliedContent);
+        var preview = appliedContent + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
+        var ret = markerResolution(label,image,preview,appliedContent,newAst.cursorTarget);
         ret.addType = addType;
         return ret;
     };

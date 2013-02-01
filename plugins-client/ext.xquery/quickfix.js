@@ -375,8 +375,21 @@ module.exports = {
     applyQuickfix : function(qfix){
         var amlEditor = editors.currentEditor.amlEditor;
         var doc = amlEditor.getSession().getDocument();
+        // TODO cursortarget like cursor
+        var cursorTarget = {
+            line: 0,
+            column: 0
+        };
         doc.setValue(qfix.appliedContent);
         amlEditor.focus();
+    
+        if (qfix.cursorTarget){
+            cursorTarget = qfix.cursorTarget;
+        }
+        var selection = amlEditor.$editor.getSelection();
+        selection.clearSelection();
+        selection.moveCursorTo(cursorTarget.line,
+            cursorTarget.column, false);
     },
     
     onTextInput : function(text, pasted) {

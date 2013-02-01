@@ -7,14 +7,16 @@ define(function(require, exports, module) {
 * a label (short description, to be displayed in the list of resolutions), 
 * an image (to be displayed in the list of resolutions), 
 * a preview,
-* the applied content
+* the applied content,
+* the position where the cursor should be after applying
 */
-var MarkerResolution = function(label, image, preview, appliedContent){
+var MarkerResolution = function(label, image, preview, appliedContent, cursorTarget){
     return {
         label: label,
         image: image,
         preview: preview,
-        appliedContent: appliedContent
+        appliedContent: appliedContent,
+        cursorTarget: cursorTarget
     };
 };
 

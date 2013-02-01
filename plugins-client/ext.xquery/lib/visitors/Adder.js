@@ -30,7 +30,7 @@
 
 define(function(require, exports, module){
 
-  var Positioner = require('Positioner.js').Positioner;
+  var Positioner = require("/ext/xquery/lib/visitors/Positioner").Positioner;
 
 
   var Adder = exports.Adder = function(ast)
@@ -80,9 +80,11 @@ define(function(require, exports, module){
               curChild.name !== prevItem
               && prologItems.indexOf(curChild.name) !== -1){
             // Insert as last NamespaceDecl
+            this.cursorTarget = { line: curChild.pos.sl, column: curChild.pos.sc};
             break;
           }else if (endItems.indexOf(curChild.name) !== -1){
             // Insert before first endItem
+            this.cursorTarget = { line: curChild.pos.sl, column: curChild.pos.sc};
             break;
           }else if (curChild.name !== 'Separator' && curChild.name !== 'WS'){
             prevItem = curChild.name;
@@ -99,11 +101,20 @@ define(function(require, exports, module){
 
         haveNewLine |= !insertIdx;
 
+        if (!this.cursorTarget){
+          this.cursorTarget = {
+            line: node.pos.sl,
+            column: node.pos.sc
+          };
+        }
+
         // namespaceDecl.NCName, namespaceDecl.URILiteral
         var newNode = _self.nodeNamespaceDecl(); 
 
         if (!haveNewLine){
           _self.pushChild(node, _self.nodeWS("\n"), insertIdx);
+          this.cursorTarget.line++;
+          this.cursorTarget.column = 0;
           insertIdx++;
         }
         // Add NamespaceDecl to Prolog
@@ -121,6 +132,14 @@ define(function(require, exports, module){
         _self.pushChild(newNode, _self.nodeWS(" "));
         _self.pushChild(newNode, _self.nodeURILiteral(
               "\"" + _self.add.NamespaceDecl.URILiteral + "\""));
+
+        if (_self.add.NamespaceDecl !== ""){
+          var addStr = "declare namespace " + _self.add.NamespaceDecl.NCName + 
+            " = \"";
+          this.cursorTarget.column += addStr.length;
+        }else{
+          this.cursorTarget = undefined;
+        }
 
         // Add Separator to Prolog
         _self.pushChild(node, _self.nodeSeparator(), insertIdx + 1);
@@ -216,14 +235,33 @@ define(function(require, exports, module){
     return ret;
   };
 
+  this.copyAst = function(node){
+    var newNode = {
+      name: node.name,
+      children: [],
+      value: node.value,
+      pos: node.pos,
+      getParent: node.getParent
+    };
+
+    for (var i = 0; i < node.children.length; i++){
+      newNode.children.push(this.copyAst(node.children[i]));
+    }
+    return newNode;
+  };
+
   /**
    * NamespaceDecl ::= 'declare' 'namespace' NCName '=' URILiteral
    */
   this.addNamespaceDecl = function(namespaceDecl){
     this.add.NamespaceDecl = namespaceDecl;
-    var addedAst = this.visit(ast);
+    var newAst = this.copyAst(ast);
+    var addedAst = this.visit(newAst);
     var positioner = new Positioner(addedAst);
-    return positioner.computePos();
+    addedAst = positioner.computePos();
+    addedAst.cursorTarget = this.cursorTarget; 
+    console.log(JSON.stringify(addedAst.cursorTarget));
+    return addedAst;
   };
 
 };
