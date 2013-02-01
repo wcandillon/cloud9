@@ -8,6 +8,7 @@ var markerResolution = require('ext/xquery/quickfix/MarkerResolution').MarkerRes
 var VariableRemover = require('ext/xquery/lib/visitors/VariableRemover').VariableRemover;
 var NamespaceRemover = require('ext/xquery/lib/visitors/NamespaceRemover').NamespaceRemover;
 var Renamer = require('ext/xquery/lib/visitors/Renamer').Renamer;
+var Adder = require('ext/xquery/lib/visitors/Adder').Adder;
 
 
 var IMG_DELETE = '/ext/xquery/images/delete_obj.gif';
@@ -16,8 +17,14 @@ var IMG_CHANGE = '/ext/xquery/images/correction_change.gif';
 
 var NUM_NSRENAME_SUGGESTIONS = 5;
 
-var RENAME_NAME = 0;
-var RENAME_PREFIX = 1;
+var RENAME = {
+    name: 0,
+    prefix: 1
+};
+
+var ADD = {
+    NamespaceDecl: 0
+};
 
 /**
  * Resolver for xquery markers. getResolutions(marker) generates
@@ -177,7 +184,7 @@ var XQueryResolver = function(ast){
                    marker: marker,
                    label: "Change prefix to " + ns,
                    toName: ns,
-                   renameType: RENAME_PREFIX
+                   renameType: RENAME.prefix
                 });
             }
         });        
@@ -195,7 +202,7 @@ var XQueryResolver = function(ast){
                         + prefix,
                        toName: prefix,
                        fromName: unusedPrefix,
-                       renameType: RENAME_NAME
+                       renameType: RENAME.name
                     });
                 }                
             }
@@ -203,7 +210,7 @@ var XQueryResolver = function(ast){
         
         
         // Resolution family 3: Add import / namespacedecl
-        
+        var addResolution = this.resAddNamespaceDecl(prefix,"");
         
         
         renames.sort(
@@ -226,8 +233,7 @@ var XQueryResolver = function(ast){
 
         var ret = [];
         
-        // TODO interleave the suggestions reasonably, e.g. the best rated
-        // renamings, then the best rated add, etc.
+        ret.push(addResolution);
         
         for (var i = 0; 
              i < NUM_NSRENAME_SUGGESTIONS && i < renameResolutions.length; i++){
@@ -244,14 +250,14 @@ var XQueryResolver = function(ast){
     
     this.resRename = function(marker, label, toName, renameType){
         var image = IMG_CHANGE;
-        
         var renamer = new Renamer(ast);
         var newAst;
+
         switch (renameType){
-            case RENAME_NAME:
+            case RENAME.name:
                 newAst = renamer.rename(marker.pos, toName);    
                 break;
-            case RENAME_PREFIX:
+            case RENAME.prefix:
                 newAst = renamer.renamePrefix(marker.pos, toName);
                 break;
             default:
@@ -267,6 +273,35 @@ var XQueryResolver = function(ast){
         return ret;
     };
     
+    this.resAdd = function(label, node, addType){
+        var image = IMG_ADD;
+        var adder = new Adder(ast);
+        var newAst;
+        
+        switch(addType){
+            case ADD.NamespaceDecl:
+                newAst = adder.addNamespaceDecl(node);
+                break;
+            default:
+                throw "Illegal addType";
+        }
+        
+        var appliedContent = astToText(newAst);
+        var preview = appliedContent;
+        var ret = markerResolution(label,image,preview,appliedContent);
+        ret.addType = addType;
+        return ret;
+    };
+    
+    this.resAddNamespaceDecl = function(ncName, uriLiteral){
+      var label = 'Add namespace declaration "' + ncName + '"';
+      uriLiteral = uriLiteral || "";
+      var node = {
+          NCName: ncName,
+          URILiteral: uriLiteral
+      };
+      return this.resAdd(label, node, ADD.NamespaceDecl);
+    };
  
     
 };
