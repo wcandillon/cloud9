@@ -71,7 +71,7 @@ function completePath(line, pos, paths) {
 function completeVariable(identifier, pos, builtin, ast) {
   var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
   var decls = sctx.getVarDecls();
-  console.log(decls);
+  //console.log(decls);
   var names = Object.keys(decls);
   var matches = completeUtil.findCompletions(identifier, names);
   return matches.map(function(name) {
@@ -95,10 +95,9 @@ function completeNSFunctions(pfx, local, pos, builtin, ast) {
     for(var i in names) {
         names[i] = pfx + ":" + names[i];
     }
-    
-    var matches = completeUtil.findCompletions(pfx+local, names);
+    var matches = completeUtil.findCompletions(pfx+":"+local, names);
     return matches.map(function(name) {
-      //console.log(name);
+      //console.log("Name:" + name);
       //TODO support multiple arities
       var local = name.substring(name.indexOf(":") + 1);
       //console.log(local);
@@ -112,7 +111,7 @@ function completeNSFunctions(pfx, local, pos, builtin, ast) {
           name: name + args,
           priority: 4,
           replaceText: name + args,
-          identifierRegex: new RegExp(nameChar)
+          identifierRegex: nameCharRegExp
       };
     });
 }
@@ -121,7 +120,7 @@ function completeDefaultFunctions(identifier, pos, builtin, ast) {
     var namespaces = Object.keys(ast.sctx.declaredNS);
     var matches = completeUtil.findCompletions(identifier, namespaces);
     var results = matches.map(function(name) {
-      var ns = ast.sctx.declaredNS[name].ns;
+    var ns = ast.sctx.declaredNS[name].ns;
       return {
           doc: builtin[ns].doc,
           docUrl: "http://www.zorba-xquery.com/html/view-module?ns=" + encodeURIComponent(ns),
@@ -176,7 +175,7 @@ function completeExpr(line, pos, builtin, sctx) {
   var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
   var before = line.substring(0, line.length - identifier.length);
   var isVar = before[before.length - 1] === "$";
-  console.log("ID " + identifier);
+  //console.log("ID " + identifier);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
