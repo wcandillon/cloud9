@@ -23,7 +23,8 @@ var RENAME = {
 };
 
 var ADD = {
-    NamespaceDecl: 0
+    NamespaceDecl: 0,
+    ModuleImport: 1
 };
 
 /**
@@ -162,17 +163,12 @@ var XQueryResolver = function(ast){
         var prefix = marker.message.split('"')[1];
 
 
-        // Resolution family 1: Change prefix to declared prefix
+        // Resolution family 1: Change prefix to imported prefix
         var renames = [];
         var localRenames = [];
         var currentNamespaces = [];
         for (var ns in ast.sctx.namespaces){
             if (ast.sctx.namespaces.hasOwnProperty(ns)){
-                currentNamespaces.push(ns);
-            }
-        }
-         for (var ns in ast.sctx.declaredNS){
-            if (ast.sctx.declaredNS.hasOwnProperty(ns)){
                 currentNamespaces.push(ns);
             }
         }
@@ -189,10 +185,11 @@ var XQueryResolver = function(ast){
             }
         });        
         
-        // Resolution family 2: Rename existing import / namespacedecl
+        // Resolution family 2: Rename existing import
         var nsRenames = [];
         ast.markers.forEach(function(mrk){
             if (_self.getType(mrk) == "unusedNamespace"){
+                // TODO make sure we don't propose to change unused NamespaceDecl
                 var unusedPrefix = mrk.message.split('"')[1];
                 if (!nsRenames[ns]){
                     nsRenames[ns] = true;
@@ -208,6 +205,7 @@ var XQueryResolver = function(ast){
             }
         });
         
+        // TODO prefer prefixes that contain the function that is to be called
         renames.sort(
             function(a,b){
                 var compareA = a.fromName || a.toName;
@@ -226,7 +224,8 @@ var XQueryResolver = function(ast){
         
                 
         // Resolution family 3: Add import / namespacedecl
-        var addResolution = this.resAddNamespaceDecl(prefix,"");
+        // TODO also propose to add imports that contain the function that is to be called
+        var addResolution = this.resAddModuleImport(prefix,"");
         
         var ret = [];
         
@@ -279,6 +278,9 @@ var XQueryResolver = function(ast){
             case ADD.NamespaceDecl:
                 newAst = adder.addNamespaceDecl(node);
                 break;
+            case ADD.ModuleImport:
+                newAst = adder.addModuleImport(node);
+                break;
             default:
                 throw "Illegal addType";
         }
@@ -291,13 +293,29 @@ var XQueryResolver = function(ast){
     };
     
     this.resAddNamespaceDecl = function(ncName, uriLiteral){
-      var label = 'Add namespace declaration "' + ncName + '"';
+      var label = 'Declare Namespace ' + ncName;
+      if (uriLiteral && uriLiteral.length){
+          label += ' = "' + uriLiteral + '"';
+      }
       uriLiteral = uriLiteral || "";
       var node = {
           NCName: ncName,
           URILiteral: uriLiteral
       };
       return this.resAdd(label, node, ADD.NamespaceDecl);
+    };
+    
+    this.resAddModuleImport = function(ncName, uriLiterals){
+      uriLiterals = uriLiterals || [];
+      var label = 'Import Module ' + ncName;
+      if (uriLiterals.length && uriLiterals[0].length){
+          label += ' = "' + uriLiterals[0] + '"';
+      }
+      var node = {
+          NCName: ncName,
+          URILiterals: uriLiterals
+      };
+      return this.resAdd(label, node, ADD.ModuleImport);
     };
  
     
