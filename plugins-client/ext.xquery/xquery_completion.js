@@ -13,7 +13,7 @@ var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
 
 var char = "-._A-Za-z0-9:\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
 var nameChar = "[" + char + "]";
-var varChar = "[\\$" + char + "]";
+var varChar = "[" + char + "\\$]";
 var nameCharRegExp = new RegExp(nameChar);
 var varCharRegExp = new RegExp(varChar);
 
@@ -73,6 +73,7 @@ function completeVariable(identifier, pos, builtin, ast) {
   var decls = sctx.getVarDecls();
   //console.log(decls);
   var names = Object.keys(decls);
+  console.log(names);
   var matches = completeUtil.findCompletions(identifier, names);
   return matches.map(function(name) {
       return {
@@ -82,7 +83,7 @@ function completeVariable(identifier, pos, builtin, ast) {
           name: "$" + name,
           priority: 4,
           replaceText: "$" + name,
-          identifierRegex: varCharRegExp
+          identifierRegex: varCharRegExp//identifier.length === 0 ? nameCharRegExp : nameCharRegExp
       };
     });
 };
@@ -173,10 +174,11 @@ function completeFunction(identifier, pos, builtin, sctx) {
 function completeExpr(line, pos, builtin, sctx) {
   var markers = [];
   var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
-  var before = line.substring(0, pos.column - identifier.length);
+  var before = line.substring(0, pos.column - (identifier.length === 0 ? 0 : identifier.length));
   var isVar = before[before.length - 1] === "$";
   console.log(before);
   console.log("ID " + identifier);
+  console.log(isVar);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
