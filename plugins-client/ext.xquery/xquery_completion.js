@@ -173,9 +173,10 @@ function completeFunction(identifier, pos, builtin, sctx) {
 function completeExpr(line, pos, builtin, sctx) {
   var markers = [];
   var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
-  var before = line.substring(0, line.length - identifier.length);
+  var before = line.substring(0, pos.column - identifier.length);
   var isVar = before[before.length - 1] === "$";
-  //console.log("ID " + identifier);
+  console.log(before);
+  console.log("ID " + identifier);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
