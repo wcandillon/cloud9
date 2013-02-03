@@ -43,7 +43,7 @@ function completeURI(line, pos, builtin) {
       return {
           doc: module.doc,
           docUrl: module.docUrl,
-          icon: "property",
+          icon: "package",
           isFunction: false,
           name: uri,
           priority: 4,
@@ -58,7 +58,7 @@ function completePath(line, pos, paths) {
     var matches = completeUtil.findCompletions(identifier, paths);
     return matches.map(function(uri) {
       return {
-          icon: "property",
+          icon: "package",
           isFunction: false,
           name: uri,
           priority: 4,
@@ -70,22 +70,28 @@ function completePath(line, pos, paths) {
 
 function completeVariable(identifier, pos, builtin, ast) {
   var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
-  var decls = sctx.getVarDecls();
-  //console.log(decls);
-  var names = Object.keys(decls);
-  console.log(names);
-  var matches = completeUtil.findCompletions(identifier, names);
-  return matches.map(function(name) {
-      return {
-          doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
-          icon: "property",
-          isFunction: false,
-          name: "$" + name,
-          priority: 4,
-          replaceText: "$" + name,
-          identifierRegex: varCharRegExp//identifier.length === 0 ? nameCharRegExp : nameCharRegExp
-      };
-    });
+  if(sctx !== null) {
+    var decls = sctx.getVarDecls();
+    //console.log(decls);
+    var names = Object.keys(decls);
+    var matches = completeUtil.findCompletions(identifier, names);
+    var match = function(name) {
+        return {
+            doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
+            icon: "property",
+            isFunction: false,
+            name: "$" + name,
+            priority: 4,
+            replaceText: "$" + name,
+            identifierRegex: varCharRegExp
+        };
+    };
+    //if(matches.length === 0) {
+    //    return names.map(match);
+    //} else {
+      return matches.map(match);
+    //}
+  }
 };
 
 function completeNSFunctions(pfx, local, pos, builtin, ast) {
@@ -123,9 +129,9 @@ function completeDefaultFunctions(identifier, pos, builtin, ast) {
     var results = matches.map(function(name) {
     var ns = ast.sctx.declaredNS[name].ns;
       return {
-          doc: builtin[ns].doc,
+          doc: builtin[ns] ? builtin[ns].doc : undefined,
           docUrl: "http://www.zorba-xquery.com/html/view-module?ns=" + encodeURIComponent(ns),
-          icon: "method",
+          icon: "property",
           isFunction: false,
           name: name + ":" + " (" + ns + ")",
           priority: 5,

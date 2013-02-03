@@ -205,7 +205,7 @@ define(function(require, exports, module) {
             });
           }
         }
-        console.log(markers);
+        //console.log(markers);
         callback({
             markers: markers,
             enableRefactorings: enableRefactorings
