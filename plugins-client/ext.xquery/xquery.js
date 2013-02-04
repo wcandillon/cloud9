@@ -6,7 +6,6 @@
  */
 define(function(require, exports, module) {
     
-var ide = require("core/ide");
 var ext = require("core/ext");
 var ide = require("core/ide");
 var editors = require("ext/editors/editors");

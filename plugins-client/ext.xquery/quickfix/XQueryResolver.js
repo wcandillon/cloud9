@@ -33,6 +33,8 @@ var ADD = {
  */
 var XQueryResolver = function(ast){
     
+
+    
     //-----------------------------------
     // UTILITY FUNCTIONS
     //-----------------------------------
@@ -81,8 +83,23 @@ var XQueryResolver = function(ast){
         return str.substring(str.length - end.length) === end;
     }
     
+    this.getModulesContainingFunction = function(fun){
+        var ret = [];
+        for (var module in this.builtin){
+            if (this.builtin.hasOwnProperty(module) &&
+                this.builtin[module].functions.hasOwnProperty(fun)){
+                ret[module] = this.builtin[module];
+            }
+        }
+        return ret;
+    };
     
-    this.getResolutions = function(marker){
+    
+    this.getResolutions = function(marker, builtin){
+        this.builtin = builtin;
+        if (!this.builtin){
+            this.builtin = {};
+        }
         var type = this.getType(marker);
         if (type){
             if (typeof this[type] === 'function'){
@@ -160,26 +177,32 @@ var XQueryResolver = function(ast){
     this.XPST0081 = function(marker){
         var _self = this;
         
-        var prefix = marker.message.split('"')[1];
-
+        var prefix = marker.prefix;
+        var localName = marker.localName;
+        
+        // The modules known to contain the function to be called
+        var containingModules = this.getModulesContainingFunction(localName);
 
         // Resolution family 1: Change prefix to imported prefix
         var renames = [];
         var localRenames = [];
-        var currentNamespaces = [];
-        for (var ns in ast.sctx.namespaces){
-            if (ast.sctx.namespaces.hasOwnProperty(ns)){
-                currentNamespaces.push(ns);
+        var currentPrefixes = [];
+        var currentNs = [];
+        for (var curPrefix in ast.sctx.namespaces){
+            if (ast.sctx.namespaces.hasOwnProperty(curPrefix)){
+                currentPrefixes.push(curPrefix);
+                currentNs.push(ast.sctx.namespaces[curPrefix]);
             }
         }
 
-        currentNamespaces.forEach(function(ns){
-            if (!localRenames[ns]){
-                localRenames[ns] = true;
+        currentPrefixes.forEach(function(curPrefix){
+            if (!localRenames[curPrefix]){
+                localRenames[curPrefix] = true;
                 renames.push({
                    marker: marker,
-                   label: "Change prefix to " + ns,
-                   toName: ns,
+                   label: "Change prefix to " + curPrefix,
+                   toName: curPrefix,
+                   hasFunction: (containingModules.hasOwnProperty(ast.sctx.namespaces[curPrefix]) ? 1 : 0),
                    renameType: RENAME.prefix
                 });
             }
@@ -191,23 +214,31 @@ var XQueryResolver = function(ast){
             if (_self.getType(mrk) == "unusedNamespace"){
                 // TODO make sure we don't propose to change unused NamespaceDecl
                 var unusedPrefix = mrk.message.split('"')[1];
-                if (!nsRenames[ns]){
-                    nsRenames[ns] = true;
+                if (!nsRenames[unusedPrefix]){
+                    nsRenames[unusedPrefix] = true;
                     renames.push({
                        marker: mrk,
                        label: 'Change unused namespace prefix "' + unusedPrefix +'" to '
                         + prefix,
                        toName: prefix,
                        fromName: unusedPrefix,
+                       hasFunction: (containingModules.hasOwnProperty(mrk.ns) ? 1 : 0),
                        renameType: RENAME.name
                     });
                 }                
             }
         });
         
-        // TODO prefer prefixes that contain the function that is to be called
+        
+                
+        
+        // prefer prefixes that contain the function that is to be called
         renames.sort(
             function(a,b){
+                var hasFuncDist = b.hasFunction - a.hasFunction;
+                if (hasFuncDist){
+                    return hasFuncDist;
+                }
                 var compareA = a.fromName || a.toName;
                 var compareB = b.fromName || b.toName;
                 return lDistance(compareA,prefix) - lDistance(compareB,prefix);
@@ -215,7 +246,8 @@ var XQueryResolver = function(ast){
         );
         
         var renameResolutions = [];
-        for (var i = 0; i < NUM_NSRENAME_SUGGESTIONS && i < renames.length; i++){
+        for (var i = 0; i < NUM_NSRENAME_SUGGESTIONS && i < renames.length &&
+             renames[i].hasFunction; i++){
             var rename = renames[i];
             var resolution = this.resRename(rename.marker, rename.label, 
                                             rename.toName, rename.renameType);
@@ -224,12 +256,21 @@ var XQueryResolver = function(ast){
         
                 
         // Resolution family 3: Add import / namespacedecl
-        // TODO also propose to add imports that contain the function that is to be called
-        var addResolution = this.resAddModuleImport(prefix,"");
+        var addResolutions = [];
+        //addResolutions.push(this.resDebug("debug", JSON.stringify(marker, null, 2)));
         
-        var ret = [];
+        // Add imports containing the function to be called
+        for (var module in containingModules){
+            if (containingModules.hasOwnProperty(module) 
+                && currentNs.indexOf(module) == -1){
+                addResolutions.push(this.resAddModuleImport(prefix, module));
+            }
+        }
         
-        ret.push(addResolution);
+        // Add unknown import with this prefix
+        addResolutions.push(this.resAddModuleImport(prefix,""));
+                
+        var ret = addResolutions;
         
         for (var i = 0; 
              i < NUM_NSRENAME_SUGGESTIONS && i < renameResolutions.length; i++){
@@ -286,7 +327,7 @@ var XQueryResolver = function(ast){
         }
         
         var appliedContent = astToText(newAst);
-        var preview = appliedContent + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
+        var preview = appliedContent; // + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
         var ret = markerResolution(label,image,preview,appliedContent,newAst.cursorTarget);
         ret.addType = addType;
         return ret;
@@ -307,6 +348,9 @@ var XQueryResolver = function(ast){
     
     this.resAddModuleImport = function(ncName, uriLiterals){
       uriLiterals = uriLiterals || [];
+      if (!(uriLiterals instanceof Array)){
+          uriLiterals = [uriLiterals];
+      }
       var label = 'Import Module ' + ncName;
       if (uriLiterals.length && uriLiterals[0].length){
           label += ' = "' + uriLiterals[0] + '"';
@@ -316,6 +360,10 @@ var XQueryResolver = function(ast){
           URILiterals: uriLiterals
       };
       return this.resAdd(label, node, ADD.ModuleImport);
+    };
+    
+    this.resDebug = function(label, preview){
+      return markerResolution(label, IMG_ADD, preview, preview);  
     };
  
     

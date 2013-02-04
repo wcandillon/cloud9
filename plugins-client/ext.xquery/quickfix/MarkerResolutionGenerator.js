@@ -15,13 +15,13 @@ var MarkerResolutionGenerator = function(ast) {
         xquery: new XQueryResolver(ast)
     };
     
-    this.getResolutions = function(marker){
+    this.getResolutions = function(marker, builtin){
         var lang = marker.lang;
         var resolver = this.resolvers[lang];
         if (!resolver){
             return [];
         }
-        return resolver.getResolutions(marker);
+        return resolver.getResolutions(marker, builtin);
     };
     
     this.registerResolver = function(lang, resolver){
