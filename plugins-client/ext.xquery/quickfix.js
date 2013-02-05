@@ -354,7 +354,8 @@ module.exports = {
                 if (!isDrawDocInvokeScheduled || delayPopup)
                     drawDocInvoke.schedule(SHOW_DOC_DELAY);
             }
-            this.docElement.innerHTML += selected.preview + '</span>';
+            this.docElement.innerHTML += 
+                selected.preview.replace(/\n/g, '<br/>') + '</span>';
         }
         else {
             txtQuickfixDoc.parentNode.hide();

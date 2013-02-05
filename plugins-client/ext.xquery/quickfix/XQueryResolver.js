@@ -83,17 +83,21 @@ var XQueryResolver = function(ast){
         return str.substring(str.length - end.length) === end;
     }
     
+    
     this.getModulesContainingFunction = function(fun){
         var ret = [];
         for (var module in this.builtin){
-            if (this.builtin.hasOwnProperty(module) &&
-                this.builtin[module].functions.hasOwnProperty(fun)){
+            if (this.moduleContainsFunction(module,fun)){
                 ret[module] = this.builtin[module];
             }
         }
         return ret;
     };
     
+    this.moduleContainsFunction = function(module, fun){
+        return this.builtin.hasOwnProperty(module) &&
+                this.builtin[module].functions.hasOwnProperty(fun);
+    };
     
     this.getResolutions = function(marker, builtin){
         this.builtin = builtin;
@@ -147,9 +151,31 @@ var XQueryResolver = function(ast){
     };
     
     this.unusedNamespace = function(marker){
-        // TODO if there is a XPST0081 somewhere (prefix not found), also
-        // suggest to rename the unused namespace prefix to that prefix
+        var _self = this;
+        var ret = [];
         
+        // unusednamespace prefix = URILiteral
+        // check for each XPST0081 (prefix2:localName) whether URILiteral 
+        // contains localName, if so suggest to rename prefix to prefix2.
+        
+        // Resolution 1: Change unused namespace prefix to prefix that cannot be
+        // expanded to URI (XPST0081)
+        var unusedNs = marker.ns;
+        ast.markers.forEach(function(mrk){
+            if (_self.getType(mrk) == "XPST0081"){
+                var nonExpandablePrefix = mrk.prefix;
+                var localName = mrk.localName;
+                if (_self.moduleContainsFunction(unusedNs, localName)){
+                    // The unused namespace contains the required function, suggest to
+                    // rename the unused prefix to the nonexpandable one
+                    ret.push(_self.resRename(marker, 
+                        "Rename prefix to " + nonExpandablePrefix,
+                        nonExpandablePrefix, RENAME.name));
+                }
+            }
+        });
+        
+        // Resolution 2: Remove unused namespace prefix
         var label = "Remove unused namespace prefix";
         var image = IMG_DELETE;
         
@@ -158,7 +184,8 @@ var XQueryResolver = function(ast){
           
         var appliedContent = astToText(removedAst);
         var preview = appliedContent;
-        return [markerResolution(label,image,preview,appliedContent)];
+        ret.push(markerResolution(label,image,preview,appliedContent));
+        return ret;
     };
     
     this.duplicateNamespace = function(marker){
@@ -183,7 +210,7 @@ var XQueryResolver = function(ast){
         // The modules known to contain the function to be called
         var containingModules = this.getModulesContainingFunction(localName);
 
-        // Resolution family 1: Change prefix to imported prefix
+        // Resolution 1: Change prefix to imported prefix
         var renames = [];
         var localRenames = [];
         var currentPrefixes = [];
@@ -208,11 +235,10 @@ var XQueryResolver = function(ast){
             }
         });        
         
-        // Resolution family 2: Rename existing import
+        // Resolution 2: Rename existing module import
         var nsRenames = [];
         ast.markers.forEach(function(mrk){
-            if (_self.getType(mrk) == "unusedNamespace"){
-                // TODO make sure we don't propose to change unused NamespaceDecl
+            if (_self.getType(mrk) == "unusedNamespace" && mrk.nsType === 'module'){
                 var unusedPrefix = mrk.message.split('"')[1];
                 if (!nsRenames[unusedPrefix]){
                     nsRenames[unusedPrefix] = true;
@@ -229,10 +255,8 @@ var XQueryResolver = function(ast){
             }
         });
         
-        
-                
-        
-        // prefer prefixes that contain the function that is to be called
+        // Sort the renames primarily by whether they contain the required
+        // function, secondarily by the edit distance to the required prefix
         renames.sort(
             function(a,b){
                 var hasFuncDist = b.hasFunction - a.hasFunction;
@@ -255,7 +279,7 @@ var XQueryResolver = function(ast){
         }
         
                 
-        // Resolution family 3: Add import / namespacedecl
+        // Resolution 3: Add import / namespacedecl
         var addResolutions = [];
         //addResolutions.push(this.resDebug("debug", JSON.stringify(marker, null, 2)));
         
