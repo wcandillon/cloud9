@@ -11,6 +11,10 @@ var ide = require("core/ide");
 var editors = require("ext/editors/editors");
 var language = require("ext/language/language");
 var filelist = require("ext/filelist/filelist");
+//var code = require("ext/code/code");
+var commands = require("ext/commands/commands");
+
+var SnippetManager = require("ace/snippets").SnippetManager;
 
 module.exports = ext.register("ext/xquery/xquery", {
     name    : "XQuery Language Support",
@@ -21,6 +25,35 @@ module.exports = ext.register("ext/xquery/xquery", {
     alone   : true,
     
     hook: function() {
+      //ide.addEventListener("init.ext/code/code", function() {
+          
+SnippetManager.register({ 
+    content: 'import module namespace ${1:ns} = "${2:http://www.example.com/}";',
+    tabTrigger: "import",
+    name: "testSnippet"
+});
+
+        commands.addCommand({
+            name: "snippet",
+            hint: "code snippet",
+            bindKey: {mac: "Tab", win: "Tab"},
+            isAvailable : function(editor){
+                return SnippetManager.expandWithTab(editor.amlEditor.$editor);
+            },
+            exec: function () {
+            }
+        });
+
+/*
+code.amlEditor.$editor.commands.bindKey("Tab", function(editor) {
+    var success = SnippetManager.expandWithTab(editor);
+    if (!success)
+        editor.execCommand("indent");
+});
+*/
+      //});
+
+
       var that = this;
       language.registerLanguageHandler('ext/xquery/compiler');
       
@@ -46,6 +79,8 @@ module.exports = ext.register("ext/xquery/xquery", {
     },
     
     enable : function() {
+                
+
     },
 
     disable : function() {
