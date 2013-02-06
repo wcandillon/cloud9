@@ -25,34 +25,53 @@ module.exports = ext.register("ext/xquery/xquery", {
     alone   : true,
     
     hook: function() {
-      //ide.addEventListener("init.ext/code/code", function() {
           
-SnippetManager.register({ 
-    content: 'import module namespace ${1:ns} = "${2:http://www.example.com/}";',
-    tabTrigger: "import",
-    name: "testSnippet"
-});
-
-        commands.addCommand({
-            name: "snippet",
-            hint: "code snippet",
-            bindKey: {mac: "Tab", win: "Tab"},
-            isAvailable : function(editor){
-                return SnippetManager.expandWithTab(editor.amlEditor.$editor);
-            },
-            exec: function () {
-            }
-        });
-
-/*
-code.amlEditor.$editor.commands.bindKey("Tab", function(editor) {
-    var success = SnippetManager.expandWithTab(editor);
-    if (!success)
-        editor.execCommand("indent");
-});
-*/
-      //});
-
+    SnippetManager.register({ 
+        content: 'import module namespace ${1:ns} = "${2:http://www.example.com/}";',
+        tabTrigger: "import",
+        name: "ImportModule"
+    });  
+    
+    SnippetManager.register({ 
+        content: 'import schema namespace ${1:ns} = "${2:http://www.example.com/}";',
+        tabTrigger: "schema",
+        name: "ImportSchema"
+    });  
+    
+    SnippetManager.register({ 
+        content: 'for $${1:item} in ${2:expression}\nreturn $${3:item}',
+        tabTrigger: "flwor",
+        name: "FLWOR"
+    });
+    
+    SnippetManager.register({ 
+        content: 'for $${1:item} in ${2:expression}',
+        tabTrigger: "for",
+        name: "ForClause"
+    });    
+    
+    SnippetManager.register({ 
+        content: 'let $${1:var} := ${2:expression}',
+        tabTrigger: "let",
+        name: "LetClause"
+    });
+    
+    SnippetManager.register({ 
+        content: 'group by $${1:var}',
+        tabTrigger: "group",
+        name: "GroupByClause"
+    });
+    
+    commands.addCommand({
+        name: "snippet",
+        hint: "code snippet",
+        bindKey: {mac: "Tab", win: "Tab"},
+        isAvailable : function(editor){
+            return SnippetManager.expandWithTab(editor.amlEditor.$editor);
+        },
+        exec: function () {
+        }
+    });
 
       var that = this;
       language.registerLanguageHandler('ext/xquery/compiler');

@@ -42,7 +42,26 @@ function completeURI(line, pos, builtin) {
       var module = builtin[uri];
       return {
           doc: module.doc,
-          docUrl: module.docUrl,
+          docUrl: "http://www.zorba-xquery.com/html/xqdoc/" + uri.substring(7).replace(/\//g, "_") + ".html",
+          icon: "package",
+          isFunction: false,
+          name: uri,
+          priority: 4,
+          replaceText: uri,
+          identifierRegex: uriRegex
+      };
+    });
+};
+
+
+function completeSchemaURI(line, pos, builtin) {
+    var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
+    var matches = completeUtil.findCompletions(identifier, Object.keys(builtin));
+    return matches.map(function(uri) {
+      var module = builtin[uri];
+      return {
+          doc: module.doc,
+//          docUrl: module.docUrl,
           icon: "package",
           isFunction: false,
           name: uri,
@@ -194,6 +213,7 @@ function completeExpr(line, pos, builtin, sctx) {
 };
 
 module.exports.completeURI = completeURI;
+module.exports.completeSchemaURI = completeSchemaURI;
 module.exports.completePath = completePath;
 module.exports.completeExpr = completeExpr;
 module.exports.completeVariable = completeVariable;
