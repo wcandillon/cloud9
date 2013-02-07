@@ -188,7 +188,7 @@ var XQueryResolver = function(ast){
         return ret;
     };
     
-    this.duplicateNamespace = function(marker){
+    this.duplicateNamespace = this.XQST0033 = function(marker){
         var label = "Remove duplicate namespace prefix";
         var image = IMG_DELETE;
         
