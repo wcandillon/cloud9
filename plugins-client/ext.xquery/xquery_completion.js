@@ -88,7 +88,7 @@ function completePath(line, pos, paths) {
 };
 
 function completeVariable(identifier, pos, builtin, ast) {
-  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
+  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column - 2 });
   if(sctx !== null) {
     var decls = sctx.getVarDecls();
     //console.log(decls);
