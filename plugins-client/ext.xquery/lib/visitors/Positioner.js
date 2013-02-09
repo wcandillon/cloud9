@@ -56,7 +56,7 @@ define(function(require, exports, module){
     ret.pos = {
       sl: this.ptr.l,
       sc: this.ptr.c
-    }
+    };
     ret.children = this.visitChildren(node, handler);
     ret.value = node.value;
     this.addToPtr(ret.value);

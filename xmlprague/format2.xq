@@ -1,17 +1,11 @@
-(: Complex FLWOR - preemptive wrapping :)
+declare function local:fun($d as xs:decimal) as xs:decimal {
+let $x:= if(true()) then $d else if (true()) then $d else $d return $x };
 
-
-<result>{
-    for $sales in doc("sales-records.xml")/*/record
-    let $state := doc("stores.xml")/*/store,
-        $product := doc("products.xml")/*/product[name = $sales/product-name],
-        $category := $product/category,
-        $revenue := $sales/qty * $product/price
-    group by $state, $category
-    order by $state, $category
-    return
-      <group>
-        { $state, $category }
-        <total-revenue>{ sum($revenue) }</total-revenue>
-      </group>
-}</result>
+declare function local:fun2() {
+        let $set1:=(3,2,1)let $set2 :=(1, 2 , 3)
+ for $x in $set2 for $y in $set1
+ return if ($x =$y) then true()
+ else false() 
+ 
+ 
+};local:fun(10)

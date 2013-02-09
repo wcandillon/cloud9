@@ -141,12 +141,13 @@ var XQueryResolver = function(ast){
     this.unusedVar = function(marker){
         var label = "Remove unused variable";
         var image = IMG_DELETE;
+        var variable = marker.message.substring(0,marker.message.indexOf(":"));
         
         var remover = new VariableRemover(ast);
         var removedAst = remover.removeVar(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        var preview = appliedContent;
+        var preview = "<b>Remove Unused Variable " + variable + "<b>";
         return [markerResolution(label,image,preview,appliedContent)];
     };
     
@@ -165,12 +166,14 @@ var XQueryResolver = function(ast){
             if (_self.getType(mrk) == "XPST0081"){
                 var nonExpandablePrefix = mrk.prefix;
                 var localName = mrk.localName;
+                var preview = "<b>Rename Unused Namespace Prefix</b>";
+                preview += "<br/><br/><i>import module namespace <b>" + nonExpandablePrefix + "</b> = \"" + unusedNs +'";</i>';
                 if (_self.moduleContainsFunction(unusedNs, localName)){
                     // The unused namespace contains the required function, suggest to
                     // rename the unused prefix to the nonexpandable one
                     ret.push(_self.resRename(marker, 
                         "Rename prefix to " + nonExpandablePrefix,
-                        nonExpandablePrefix, RENAME.name));
+                        nonExpandablePrefix, RENAME.name, preview));
                 }
             }
         });
@@ -183,7 +186,8 @@ var XQueryResolver = function(ast){
         var removedAst = remover.removeNs(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        var preview = appliedContent;
+        var preview = "<b>Remove Unused Module Import</b>";
+        preview += "<br/><br/><del>import module namespace " + marker.prefix + " = \"" + unusedNs +'";</del></i>';        
         ret.push(markerResolution(label,image,preview,appliedContent));
         return ret;
     };
@@ -225,9 +229,12 @@ var XQueryResolver = function(ast){
         currentPrefixes.forEach(function(curPrefix){
             if (!localRenames[curPrefix]){
                 localRenames[curPrefix] = true;
+                var preview = "<b>Change Namespace Prefix</b>";
+                preview += "<br/><br/><i><b>" + curPrefix + "</b>:" + localName + "(...</i>";
                 renames.push({
                    marker: marker,
                    label: "Change prefix to " + curPrefix,
+                   preview: preview,
                    toName: curPrefix,
                    hasFunction: (containingModules.hasOwnProperty(ast.sctx.namespaces[curPrefix]) ? 1 : 0),
                    renameType: RENAME.prefix
@@ -242,10 +249,13 @@ var XQueryResolver = function(ast){
                 var unusedPrefix = mrk.message.split('"')[1];
                 if (!nsRenames[unusedPrefix]){
                     nsRenames[unusedPrefix] = true;
+                    var preview = "<b>Rename Unused Namespace</b>";
+                    preview += "<br/><br/><i>import module namespace <b>" + prefix + "</b> = \"" + mrk.ns +'";</i>';
                     renames.push({
                        marker: mrk,
                        label: 'Change unused namespace prefix "' + unusedPrefix +'" to '
                         + prefix,
+                        preview: preview,
                        toName: prefix,
                        fromName: unusedPrefix,
                        hasFunction: (containingModules.hasOwnProperty(mrk.ns) ? 1 : 0),
@@ -274,7 +284,7 @@ var XQueryResolver = function(ast){
              renames[i].hasFunction; i++){
             var rename = renames[i];
             var resolution = this.resRename(rename.marker, rename.label, 
-                                            rename.toName, rename.renameType);
+                                            rename.toName, rename.renameType, rename.preview);
             renameResolutions.push(resolution);
         }
         
@@ -292,7 +302,10 @@ var XQueryResolver = function(ast){
         }
         
         // Add unknown import with this prefix
-        addResolutions.push(this.resAddModuleImport(prefix,""));
+        // Removed for demo
+        if (!addResolutions.length && !renameResolutions.length){
+            addResolutions.push(this.resAddModuleImport(prefix,""));
+        }
                 
         var ret = addResolutions;
         
@@ -309,7 +322,7 @@ var XQueryResolver = function(ast){
     // MarkerResolutions
     //-----------------------------------
     
-    this.resRename = function(marker, label, toName, renameType){
+    this.resRename = function(marker, label, toName, renameType, preview){
         var image = IMG_CHANGE;
         var renamer = new Renamer(ast);
         var newAst;
@@ -326,7 +339,7 @@ var XQueryResolver = function(ast){
         }
           
         var appliedContent = astToText(newAst);
-        var preview = appliedContent;
+        var preview = preview || appliedContent;
         //var preview = JSON.stringify(marker);
         var ret = markerResolution(label,image,preview,appliedContent);
         ret.toName = toName;
@@ -334,7 +347,7 @@ var XQueryResolver = function(ast){
         return ret;
     };
     
-    this.resAdd = function(label, node, addType){
+    this.resAdd = function(label, node, addType, preview){
         var image = IMG_ADD;
         var adder = new Adder(ast);
         var newAst;
@@ -351,7 +364,7 @@ var XQueryResolver = function(ast){
         }
         
         var appliedContent = astToText(newAst);
-        var preview = appliedContent; // + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
+        var preview = preview || appliedContent; // + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
         var ret = markerResolution(label,image,preview,appliedContent,newAst.cursorTarget);
         ret.addType = addType;
         return ret;
@@ -376,14 +389,21 @@ var XQueryResolver = function(ast){
           uriLiterals = [uriLiterals];
       }
       var label = 'Import Module ' + ncName;
+      var lit;
       if (uriLiterals.length && uriLiterals[0].length){
+          lit = '"' + uriLiterals[0] + '"';
           label += ' = "' + uriLiterals[0] + '"';
+      }else{
+          lit = '""';
       }
       var node = {
           NCName: ncName,
           URILiterals: uriLiterals
       };
-      return this.resAdd(label, node, ADD.ModuleImport);
+      var preview = "<b>Add Module Import</b>";
+      preview += "<br/><br/><i>import module namespace " + ncName + " = " + lit + ";";
+      
+      return this.resAdd(label, node, ADD.ModuleImport, preview);
     };
     
     this.resDebug = function(label, preview){

@@ -1,4 +1,17 @@
+(:
+1. demo.xq
+http:send-request() 
 
+qf error -> import module (quickly)
+explain about quickfixes, revert, show again slowly
+
+2. demo2.xq 
+explain issues, show and explain available quickfixes for each, explain use of static analysis
+apply/revert quickfixes separately
+
+
+
+:)
 
 
 (:
