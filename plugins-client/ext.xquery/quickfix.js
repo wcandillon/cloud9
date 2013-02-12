@@ -430,6 +430,7 @@ module.exports = {
                 this.applyQuickfix(this.quickFixes[this.selectedIdx]);
                 quickfix.forceClose = true;
                 this.closeQuickfixBox();
+                e.stopPropagation();
                 e.preventDefault();
                 break;
             case 40: // Down

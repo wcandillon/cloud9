@@ -155,14 +155,14 @@ var XQueryResolver = function(ast){
         var _self = this;
         var ret = [];
         
-        // unusednamespace prefix = URILiteral
-        // check for each XPST0081 (prefix2:localName) whether URILiteral 
-        // contains localName, if so suggest to rename prefix to prefix2.
-        
         // Resolution 1: Change unused namespace prefix to prefix that cannot be
         // expanded to URI (XPST0081)
         var unusedNs = marker.ns;
         ast.markers.forEach(function(mrk){
+            // unusedPrefix = unusedNs
+            // check for each XPST0081 (nonExpandablePrefix:localName) whether 
+            // unusedNs contains localName, if so suggest to rename unusedPrefix
+            // to nonExpandablePrefix
             if (_self.getType(mrk) == "XPST0081"){
                 var nonExpandablePrefix = mrk.prefix;
                 var localName = mrk.localName;
@@ -302,16 +302,15 @@ var XQueryResolver = function(ast){
         }
         
         // Add unknown import with this prefix
-        // Removed for demo
         if (!addResolutions.length && !renameResolutions.length){
-            addResolutions.push(this.resAddModuleImport(prefix,""));
+            addResolutions.push(this.resAddModuleImport(prefix, ""));
         }
                 
         var ret = addResolutions;
         
         for (var i = 0; 
              i < NUM_NSRENAME_SUGGESTIONS && i < renameResolutions.length; i++){
-                 ret.push(renameResolutions[i]);
+                ret.push(renameResolutions[i]);
              }
         return ret;
     };
@@ -339,32 +338,35 @@ var XQueryResolver = function(ast){
         }
           
         var appliedContent = astToText(newAst);
-        var preview = preview || appliedContent;
-        //var preview = JSON.stringify(marker);
+        preview = preview || appliedContent;
         var ret = markerResolution(label,image,preview,appliedContent);
         ret.toName = toName;
         ret.renameType = renameType;
         return ret;
     };
     
-    this.resAdd = function(label, node, addType, preview){
+    this.resAdd = function(label, node, addType){
         var image = IMG_ADD;
         var adder = new Adder(ast);
-        var newAst;
+        var newAst, preview = "";
         
         switch(addType){
             case ADD.NamespaceDecl:
                 newAst = adder.addNamespaceDecl(node);
+                preview = "<b>Add Namespace Declaration</b>";
+                preview += "<br/><br/><i>" + adder.getAddedString() + "</i>";
                 break;
             case ADD.ModuleImport:
                 newAst = adder.addModuleImport(node);
+                preview = "<b>Add Module Import</b>";
+                preview += "<br/><br/><i>" + adder.getAddedString() + "</i>";
                 break;
             default:
                 throw "Illegal addType";
         }
         
         var appliedContent = astToText(newAst);
-        var preview = preview || appliedContent; // + ", targetPos: " + JSON.stringify(newAst.cursorTarget);
+        preview = preview || appliedContent;
         var ret = markerResolution(label,image,preview,appliedContent,newAst.cursorTarget);
         ret.addType = addType;
         return ret;
@@ -389,21 +391,12 @@ var XQueryResolver = function(ast){
           uriLiterals = [uriLiterals];
       }
       var label = 'Import Module ' + ncName;
-      var lit;
-      if (uriLiterals.length && uriLiterals[0].length){
-          lit = '"' + uriLiterals[0] + '"';
-          label += ' = "' + uriLiterals[0] + '"';
-      }else{
-          lit = '""';
-      }
       var node = {
           NCName: ncName,
           URILiterals: uriLiterals
       };
-      var preview = "<b>Add Module Import</b>";
-      preview += "<br/><br/><i>import module namespace " + ncName + " = " + lit + ";";
       
-      return this.resAdd(label, node, ADD.ModuleImport, preview);
+      return this.resAdd(label, node, ADD.ModuleImport);
     };
     
     this.resDebug = function(label, preview){
