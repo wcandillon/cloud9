@@ -1,5 +1,6 @@
-import module namespace lib = "unused.org";
-import module namespace lib2 = "http://expath.org/ns/http-client";
+
+import module namespace http = "http://expath.org/ns/http-client";
+import module namespace ft = "http://www.zorba-xquery.com/modules/full-text";
 
 
 let $request := 
