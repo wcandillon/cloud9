@@ -147,7 +147,7 @@ var XQueryResolver = function(ast){
         var removedAst = remover.removeVar(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        var preview = "<b>Remove Unused Variable " + variable + "<b>";
+        var preview = "<b>Remove Unused Variable <i>" + variable + "</i><b>";
         return [markerResolution(label,image,preview,appliedContent)];
     };
     
@@ -187,7 +187,7 @@ var XQueryResolver = function(ast){
           
         var appliedContent = astToText(removedAst);
         var preview = "<b>Remove Unused Module Import</b>";
-        preview += "<br/><br/><del>import module namespace " + marker.prefix + " = \"" + unusedNs +'";</del></i>';        
+        preview += '<br/><br/><del><i>' + remover.getRemovedString() + '</del></i>';        
         ret.push(markerResolution(label,image,preview,appliedContent));
         return ret;
     };
@@ -200,7 +200,8 @@ var XQueryResolver = function(ast){
         var removedAst = remover.removeNs(marker.pos);
           
         var appliedContent = astToText(removedAst);
-        var preview = appliedContent;
+        var preview = "<b>Remove Duplicate Namespace Prefix</b>";
+        preview += "<br/><br/><i><del>" + remover.getRemovedString() + "</del></i>";
         return [markerResolution(label,image,preview,appliedContent)];
     };
     
