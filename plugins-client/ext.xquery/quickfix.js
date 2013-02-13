@@ -12,7 +12,6 @@ var ide = require("core/ide");
 var dom = require("ace/lib/dom");
 var code = require("ext/code/code");
 var editors = require("ext/editors/editors");
-var language = require("ext/language/language");
 var lang = require("ace/lib/lang");
 
 var quickfix;
@@ -24,9 +23,6 @@ var CLASS_UNSELECTED = "cc_complete_option";
 var SHOW_DOC_DELAY = 1500;
 var SHOW_DOC_DELAY_MOUSE_OVER = 100;
 var HIDE_DOC_DELAY = 1000;
-var AUTO_OPEN_DELAY = 200;
-var AUTO_UPDATE_DELAY = 200;
-var CRASHED_COMPLETION_TIMEOUT = 6000;
 var MENU_WIDTH = 400;
 var MENU_SHOWN_ITEMS = 9;
 var EXTRA_LINE_HEIGHT = 3;
@@ -34,9 +30,6 @@ var QFBOX_MINTIME = 500;
 
 
 var ignoreMouseOnce = false;
-
-
-
 var isDocShown;
 var isDrawDocInvokeScheduled = false;
 
@@ -64,7 +57,8 @@ var commands = require("ext/commands/commands");
 module.exports = {
  
     hook: function(ext) {
-        var _self = quickfix = this;
+        var _self = this;
+        quickfix = this;
                   
         ide.addEventListener("tab.afterswitch", function(e) {
             var page = e.nextPage;
@@ -162,6 +156,8 @@ module.exports = {
         }
         var anno = annos[i];
         if (!anno.resolutions.length){
+            // TODO If some other annotation on this line has resolutions, 
+            // quickfix that one instead
             return;
         }
 
@@ -190,7 +186,6 @@ module.exports = {
             ace.keyBinding.onTextInput = this.onTextInput.bind(this);
         }
         
-        
         // Collect all quickfixes for the given annotation
         _self.quickFixes = anno.resolutions;
         
@@ -202,7 +197,6 @@ module.exports = {
         apf.popup.setContent("quickfixBox", barQuickfixCont.$ext);
         var boxLength = this.quickFixes.length || 1;
         var quickfixBoxHeight = 11 + Math.min(10 * this.lineHeight, boxLength * (this.lineHeight));
-        var cursorLayer = ace.renderer.$cursorLayer;
         
         var innerBoxLength = this.quickFixes.length || 1;
         var innerQuickfixBoxHeight = Math.min(10 * this.lineHeight, innerBoxLength * (this.lineHeight));
@@ -217,7 +211,6 @@ module.exports = {
             height   : quickfixBoxHeight,
             width    : MENU_WIDTH,
             animate  : false,
-            //ref      : cursorLayer.cursor,
             callback : function() {
                 barQuickfixCont.setHeight(quickfixBoxHeight);
                 barQuickfixCont.$ext.style.height = quickfixBoxHeight + "px";
@@ -252,7 +245,6 @@ module.exports = {
         ace.container.removeEventListener("DOMMouseScroll", quickfix.closeQuickfixBox, false);
         ace.container.removeEventListener("mousewheel", quickfix.closeQuickfixBox, false);
         
-        
         if(oldCommandKey) {
             ace.keyBinding.onCommandKey = oldCommandKey;
             ace.keyBinding.onTextInput = oldOnTextInput;
@@ -267,19 +259,6 @@ module.exports = {
         var _self = this;
         _self.quickfixElement.innerHTML = "";
         var cursorConfig = code.amlEditor.$editor.renderer.$cursorLayer.config;
-        var hasIcons = false;
-        
-        
-        quickFixes.forEach(function(anno) {
-            if (anno.image)
-                hasIcons = true;
-        });
-        
-        
-        var editor = editors.currentEditor.amlEditor.$editor;
-        var pos = editor.getCursorPosition();
-        var line = editor.getSession().getLine(pos.row);
-        var isInferAvailable = language.isInferAvailable();
 
         // For each quickfix, create a list entry
         quickFixes.forEach(function(qfix, qfidx){
@@ -287,27 +266,11 @@ module.exports = {
             var annoEl = dom.createElement("div");
             annoEl.className = qfidx === _self.selectedIdx ? CLASS_SELECTED : CLASS_UNSELECTED;
             var html = "";
-            
-            
+
             if (qfix.image)
                 html = "<img src='" + ide.staticPrefix + qfix.image + "'/>";
 
-/*
-            var docHead;
-            if (qfix.type) {
-                var shortType = _self.$guidToShortString(qfix.type);
-                if (shortType) {
-                    qfix.meta = shortType;
-                    docHead = qfix.name + " : " + _self.$guidToLongString(qfix.type) + "</div>";
-                }
-            }
-            var prefix = completeUtil.retrievePrecedingIdentifier(line, pos.column, qfix.identifierRegex);
-*/
-            
             html += '<span class="main">' + qfix.label + '</span>';
-
-            
-            // "<span class="main maintrim"><u></u>fn</span><span class="meta">snippet</span>"
 
             annoEl.innerHTML = html;     
             
@@ -376,7 +339,7 @@ module.exports = {
     applyQuickfix : function(qfix){
         var amlEditor = editors.currentEditor.amlEditor;
         var doc = amlEditor.getSession().getDocument();
-        // TODO cursortarget like cursor
+        // TODO make the cursortarget default to current cursor position
         var cursorTarget = {
             line: 0,
             column: 0
@@ -483,8 +446,6 @@ module.exports = {
         var pos = editor.getCursorPosition();
         
         _self.showQuickfixBox(pos.row, pos.column);
-        
-
     }
  
 };
