@@ -33,12 +33,14 @@ define(function(require, exports, module){
    
 var ERROR = "error";
 var WARNING = "warning";
+var LANG = "xquery";
     
 exports.Errors = {
     
     warning: function(pos, msg) {
       return {
         pos: pos,
+        lang: LANG,
         type: WARNING,
         level: WARNING,
         message: msg
@@ -49,9 +51,11 @@ exports.Errors = {
       var msg = '$' + name + ': unused variable.';
       return {
         pos: pos,
+        lang: LANG,
         type: WARNING,
         level: WARNING,
-        message: msg
+        message: msg,
+        hasResolution: true
       };
     },
     
@@ -68,6 +72,7 @@ exports.Errors = {
     XPST0008: function(pos, varname) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
         message: '[XPST0008] "' + varname + '": undeclared variable.'
@@ -77,28 +82,29 @@ exports.Errors = {
     XQST0033: function(pos, prefix, ns) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
         message: '[XQST0033] "' + prefix + '": namespace prefix already bound to "' + ns + '".'
       };
     },
     
-    XPST0081: function(pos, prefix) {
+    XPST0081: function(pos, prefix, localName) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
+        prefix: prefix,
+        localName: localName,
         message: '[XPST0081] "' + prefix + '": can not expand namespace prefix to URI.'
       };
-    },
-    
-    XQST0049: function(pos, varname) {
-        
     },
     
     XQST0039: function(pos, varname) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
         message: '[XQST0039] "' + varname + '": duplicate parameter name.'
@@ -108,6 +114,7 @@ exports.Errors = {
     XQST0049: function(pos, varname) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
         message: '[XQST0049] "' + varname + '": duplicate variable declaration.'
@@ -117,6 +124,7 @@ exports.Errors = {
     XQST0034: function(pos, functionName) {
       return {
         pos: pos,
+        lang: LANG,
         type: ERROR,
         level: ERROR,
         message: '[XQST0034] "' + functionName + '": duplicate function declaration.'
