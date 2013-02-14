@@ -14,7 +14,9 @@ define(function(require, exports, module) {
     var CodeFormatter = require('ext/xquery/lib/visitors/CodeFormatter').CodeFormatter;
     var Compiler = require('ext/xquery/lib/Compiler').Compiler;
     var Utils = require('ext/xquery/lib/utils').Utils;
+    var MarkerResolutionGenerator = require('ext/xquery/quickfix/MarkerResolutionGenerator').MarkerResolutionGenerator;
     var Refactoring = require('ext/xquery/refactoring').Refactoring;
+    
     var handler = module.exports = Object.create(baseLanguageHandler);
 
     var builtin = null;
@@ -52,11 +54,27 @@ define(function(require, exports, module) {
     };
 
     handler.analyze = function(doc, ast, callback) {
-        callback(handler.analyzeSync(doc, ast));
+                
+        if(builtin === null) {
+          var text = completeUtil.fetchText('/static', 'ext/xquery/lib/builtin.json'); // TODO staticprefix is hardcoded here!
+          builtin = JSON.parse(text);  
+          if (!builtin){
+              throw "Failed to init builtin @analyze, this.staticPrefix=" + this.staticPrefix;
+          }
+        }
+        
+        callback(handler.analyzeSync(doc, ast, builtin));
     };
 
-    handler.analyzeSync = function(doc, ast) {
+    handler.analyzeSync = function(doc, ast, builtin) {
         var markers = ast.markers;
+        
+        // Generate resolutions
+        var generator = new MarkerResolutionGenerator(ast);
+        markers.forEach(function(curMarker){
+            curMarker.resolutions = generator.getResolutions(curMarker, builtin);
+        });
+        
         var error = ast.error;
         //If syntax error, don't show warnings?
         return markers;
@@ -71,9 +89,10 @@ define(function(require, exports, module) {
 
     handler.complete = function(doc, fullAst, pos, currentNode, callback) {
 
+        
         if(builtin === null) {
           var text = completeUtil.fetchText(this.staticPrefix, 'ext/xquery/lib/builtin.json');
-          builtin = JSON.parse(text);  
+          builtin = JSON.parse(text); 
         }
         
         if(schemas === null) {
