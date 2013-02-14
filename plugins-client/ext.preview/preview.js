@@ -75,6 +75,10 @@ module.exports = ext.register($name, {
                     var doc = page.$doc;
                     var path = doc.getNode().getAttribute("path");
                     var url = location.protocol + "//" + location.host + path;
+                    var project = window.cloud9config.workspaceId;
+                    var davPrefix = window.cloud9config.davPrefix;
+                    var pub = davPrefix + "/public/";
+                    url = location.protocol + "//" + project + "." + location.host.substring(location.host.indexOf(".") + 1) + "/" + path.substring(pub.length);
                     _self.preview(url, {path: path, value: doc.getValue()});
                 }
             }), 10)

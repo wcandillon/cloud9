@@ -19,7 +19,9 @@ define(function(require, exports, module) {
     
     var handler = module.exports = Object.create(baseLanguageHandler);
 
-    var builtin =  null;
+    var builtin = null;
+    var schemas = null;
+    
     var paths = [];
     
     handler.init = function(callback) {
@@ -93,9 +95,30 @@ define(function(require, exports, module) {
           builtin = JSON.parse(text); 
         }
         
+        if(schemas === null) {
+          var text = completeUtil.fetchText(this.staticPrefix, 'ext/xquery/lib/schemas.json');
+          schemas = JSON.parse(text);  
+        }
+        
         var line = doc.getLine(pos.row);
         
-        if (currentNode !== undefined && currentNode.name === "URILiteral") {
+        if(currentNode !== undefined && currentNode.name === "URILiteral" && currentNode.getParent && currentNode.getParent.name === "SchemaImport") {
+            var p = currentNode.getParent;
+            var idx = 0;
+            for(var i=0; i < p.children.length; i++) {
+              var child = p.children[i];
+              if(child.pos.sl === currentNode.pos.sl && child.pos.sc === currentNode.pos.sc &&
+                 child.pos.el === currentNode.pos.el && child.pos.ec === currentNode.pos.ec) {
+                if(idx > 0) {
+                  callback(xqCompletion.completePath(line, pos, paths));
+                } else {
+                  callback(xqCompletion.completeSchemaURI(line, pos, schemas));
+                }
+              } else if(child.name === "URILiteral") {
+                idx++;
+              }
+            }
+        } else if (currentNode !== undefined && currentNode.name === "URILiteral" && currentNode.getParent) {
             var p = currentNode.getParent;
             var idx = 0;
             for(var i=0; i < p.children.length; i++) {
@@ -224,7 +247,7 @@ define(function(require, exports, module) {
             });
           }
         }
-        console.log(markers);
+        //console.log(markers);
         callback({
             markers: markers,
             enableRefactorings: enableRefactorings

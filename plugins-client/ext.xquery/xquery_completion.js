@@ -13,7 +13,7 @@ var uriRegex = /[a-zA-Z_0-9\/\.:\-#]/;
 
 var char = "-._A-Za-z0-9:\u00B7\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02ff\u0300-\u037D\u037F-\u1FFF\u200C\u200D\u203f\u2040\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD";
 var nameChar = "[" + char + "]";
-var varChar = "[\\$" + char + "]";
+var varChar = "[" + char + "\\$]";
 var nameCharRegExp = new RegExp(nameChar);
 var varCharRegExp = new RegExp(varChar);
 
@@ -42,8 +42,27 @@ function completeURI(line, pos, builtin) {
       var module = builtin[uri];
       return {
           doc: module.doc,
-          docUrl: module.docUrl,
-          icon: "property",
+          docUrl: "http://www.zorba-xquery.com/html/xqdoc/" + uri.substring(7).replace(/\//g, "_") + ".html",
+          icon: "package",
+          isFunction: false,
+          name: uri,
+          priority: 4,
+          replaceText: uri,
+          identifierRegex: uriRegex
+      };
+    });
+};
+
+
+function completeSchemaURI(line, pos, builtin) {
+    var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, uriRegex);
+    var matches = completeUtil.findCompletions(identifier, Object.keys(builtin));
+    return matches.map(function(uri) {
+      var module = builtin[uri];
+      return {
+          doc: module.doc,
+//          docUrl: module.docUrl,
+          icon: "package",
           isFunction: false,
           name: uri,
           priority: 4,
@@ -58,7 +77,7 @@ function completePath(line, pos, paths) {
     var matches = completeUtil.findCompletions(identifier, paths);
     return matches.map(function(uri) {
       return {
-          icon: "property",
+          icon: "package",
           isFunction: false,
           name: uri,
           priority: 4,
@@ -69,22 +88,29 @@ function completePath(line, pos, paths) {
 };
 
 function completeVariable(identifier, pos, builtin, ast) {
-  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column });
-  var decls = sctx.getVarDecls();
-  //console.log(decls);
-  var names = Object.keys(decls);
-  var matches = completeUtil.findCompletions(identifier, names);
-  return matches.map(function(name) {
-      return {
-          doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
-          icon: "property",
-          isFunction: false,
-          name: "$" + name,
-          priority: 4,
-          replaceText: "$" + name,
-          identifierRegex: varCharRegExp
-      };
-    });
+  var sctx = Utils.findNode(ast.sctx, { line: pos.row, col: pos.column - 2 });
+  if(sctx !== null) {
+    var decls = sctx.getVarDecls();
+    //console.log(decls);
+    var names = Object.keys(decls);
+    var matches = completeUtil.findCompletions(identifier, names);
+    var match = function(name) {
+        return {
+            doc: "<p>" +  varDeclLabels[decls[name].kind] + ".</p>",
+            icon: "property",
+            isFunction: false,
+            name: "$" + name,
+            priority: 4,
+            replaceText: "$" + name,
+            identifierRegex: varCharRegExp
+        };
+    };
+    //if(matches.length === 0) {
+    //    return names.map(match);
+    //} else {
+      return matches.map(match);
+    //}
+  }
 };
 
 function completeNSFunctions(pfx, local, pos, builtin, ast) {
@@ -122,9 +148,9 @@ function completeDefaultFunctions(identifier, pos, builtin, ast) {
     var results = matches.map(function(name) {
     var ns = ast.sctx.declaredNS[name].ns;
       return {
-          doc: builtin[ns].doc,
+          doc: builtin[ns] ? builtin[ns].doc : undefined,
           docUrl: "http://www.zorba-xquery.com/html/view-module?ns=" + encodeURIComponent(ns),
-          icon: "method",
+          icon: "property",
           isFunction: false,
           name: name + ":" + " (" + ns + ")",
           priority: 5,
@@ -173,9 +199,11 @@ function completeFunction(identifier, pos, builtin, sctx) {
 function completeExpr(line, pos, builtin, sctx) {
   var markers = [];
   var identifier = completeUtil.retrievePreceedingIdentifier(line, pos.column, nameCharRegExp);
-  var before = line.substring(0, line.length - identifier.length);
+  var before = line.substring(0, pos.column - (identifier.length === 0 ? 0 : identifier.length));
   var isVar = before[before.length - 1] === "$";
-  //console.log("ID " + identifier);
+  console.log(before);
+  console.log("ID " + identifier);
+  console.log(isVar);
   if(isVar) {
     markers = completeVariable(identifier, pos, builtin, sctx);
   } else {
@@ -185,6 +213,7 @@ function completeExpr(line, pos, builtin, sctx) {
 };
 
 module.exports.completeURI = completeURI;
+module.exports.completeSchemaURI = completeSchemaURI;
 module.exports.completePath = completePath;
 module.exports.completeExpr = completeExpr;
 module.exports.completeVariable = completeVariable;
